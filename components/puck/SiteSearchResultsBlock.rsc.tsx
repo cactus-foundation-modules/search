@@ -28,6 +28,16 @@ function href(params: Record<string, string | number | undefined>): string {
 export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockProps) {
   await connection()
 
+  // Audience gate, before any index work: on 'Admins only' the whole results
+  // list is withheld from the public. `getSessionFromCookie` is React-cached, so
+  // the members-tier read further down reuses this lookup. (Field is `audience`,
+  // not `visibility` - core strips a same-named responsive field from render
+  // props, which would swallow the gate.)
+  if (props.audience === 'admin') {
+    const admin = await getSessionFromCookie().catch(() => null)
+    if (!admin) return null
+  }
+
   const q = (props.searchQuery ?? '').trim()
   const page = Math.max(1, props.searchPageNum ?? 1)
   const sort = props.searchSort === 'newest' ? 'newest' as const : 'relevance' as const

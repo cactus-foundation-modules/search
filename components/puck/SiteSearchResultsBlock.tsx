@@ -58,6 +58,10 @@ export type SiteSearchResultsBlockProps = {
   countTemplate?: string
   emptyTitle?: string
   emptyBody?: string
+  // Audience. NB: keep this key as `audience`, never `visibility` - core owns a
+  // responsive-visibility field of that exact name on every block and strips it
+  // from render props, which would silently disable this gate.
+  audience?: string
   // Injected by the /search page (inject-search-context.ts), never fields
   searchQuery?: string
   searchPageNum?: number
@@ -196,6 +200,15 @@ export const siteSearchResultsPuckComponent = {
     countTemplate: { type: 'text' as const, label: 'Count line ({count} = result count, blank hides)' },
     emptyTitle: { type: 'text' as const, label: 'No-results title' },
     emptyBody: { type: 'textarea' as const, label: 'No-results text' },
+    // Audience. See the note on SiteSearchResultsBlockProps: the key must stay
+    // `audience`, never `visibility`.
+    audience: {
+      type: 'select' as const, label: 'Who can see this',
+      options: [
+        { value: 'everyone', label: 'Everyone' },
+        { value: 'admin', label: 'Admins only' },
+      ],
+    },
   },
   defaultProps: {
     searchPages: 'yes',
@@ -228,6 +241,7 @@ export const siteSearchResultsPuckComponent = {
     countTemplate: '{count} results',
     emptyTitle: 'Nothing found',
     emptyBody: 'No matches for that. Check the spelling, or try fewer words.',
+    audience: 'everyone',
   },
   async resolveFields(data: { props: SiteSearchResultsBlockProps }, { fields }: { fields: Record<string, unknown> }) {
     const next = { ...fields }

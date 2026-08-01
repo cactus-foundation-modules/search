@@ -65,6 +65,10 @@ export type SiteSearchBlockProps = {
   highlightMatches?: string
   viewAllLabel?: string
   emptyText?: string
+  // Audience. NB: keep this key as `audience`, never `visibility` - core owns a
+  // responsive-visibility field of that exact name on every block and strips it
+  // from render props, which would silently disable this gate.
+  audience?: string
   // Injected by the /search page (inject-search-context.ts), never fields
   searchQuery?: string
   searchPageNum?: number
@@ -290,6 +294,15 @@ export const siteSearchPuckComponent = {
     highlightMatches: { type: 'select' as const, label: 'Highlight matched words', options: yesNo },
     viewAllLabel: { type: 'text' as const, label: '"View all" label ({query} = search term)' },
     emptyText: { type: 'text' as const, label: 'No-results text' },
+    // Audience. See the note on SiteSearchBlockProps: the key must stay
+    // `audience`, never `visibility`.
+    audience: {
+      type: 'select' as const, label: 'Who can see this',
+      options: [
+        { value: 'everyone', label: 'Everyone' },
+        { value: 'admin', label: 'Admins only' },
+      ],
+    },
   },
   defaultProps: {
     mode: 'page',
@@ -330,6 +343,7 @@ export const siteSearchPuckComponent = {
     highlightMatches: 'yes',
     viewAllLabel: 'See all results for "{query}"',
     emptyText: 'No results. Try a different word or two.',
+    audience: 'everyone',
   },
   async resolveFields(data: { props: SiteSearchBlockProps }, { fields }: { fields: Record<string, unknown> }) {
     const next = { ...fields }

@@ -1,3 +1,5 @@
+import { connection } from 'next/server'
+import { getSessionFromCookie } from '@/lib/auth/session'
 import { searchCss } from '../public/search-css'
 import SearchBoxClient, { type SearchBoxPublicConfig } from '../public/SearchBoxClient'
 import { siteSearchPuckComponent, sourcesFromProps, type SiteSearchBlockProps } from './SiteSearchBlock'
@@ -6,6 +8,10 @@ import { siteSearchPuckComponent, sourcesFromProps, type SiteSearchBlockProps } 
 // crosses to the client island - and every prop here IS display config, so the
 // mapping below is a whitelist rather than a spread (Puck's injected bag with
 // its functions must never reach a client component).
+//
+// This half also owns the 'Admins only' audience gate: it reads the admin
+// session cookie via @/lib/auth/session (next/headers + Prisma), which is
+// server-only and must stay out of the editor bundle in SiteSearchBlock.tsx.
 
 function toConfig(props: SiteSearchBlockProps): SearchBoxPublicConfig {
   const pick = <T extends string>(value: string | undefined, allowed: readonly T[], fallback: T): T =>
@@ -52,7 +58,18 @@ function toConfig(props: SiteSearchBlockProps): SearchBoxPublicConfig {
   }
 }
 
-export function SiteSearchBlockRsc(props: SiteSearchBlockProps) {
+// When `audience` is 'admin' the box is withheld from the public and rendered
+// only for a signed-in site admin; 'everyone' (the default) skips the session
+// read entirely so the common case stays cacheable.
+export async function SiteSearchBlockRsc(props: SiteSearchBlockProps) {
+  if (props.audience === 'admin') {
+    // connection() opts this render out of static caching so the cookie check
+    // runs per request - otherwise an admin's view could be cached and served
+    // to the public, or vice versa.
+    await connection()
+    const admin = await getSessionFromCookie()
+    if (!admin) return null
+  }
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
