@@ -7,18 +7,19 @@ import type { SearchSourceKey } from '@/modules/search/lib/types'
 // prisma or any server-only API.
 
 // Cached fetch so resolveFields doesn't refetch on every panel keystroke.
-let _sourcesCache: { data: Array<{ key: string; label: string }>; expires: number } | null = null
-async function fetchAvailableSources(): Promise<Array<{ key: string; label: string }>> {
+type ProbeResult = { sources: Array<{ key: string; label: string }>; shopCardProvider: boolean }
+let _probeCache: { data: ProbeResult; expires: number } | null = null
+async function fetchProbe(): Promise<ProbeResult> {
   const now = Date.now()
-  if (_sourcesCache && now < _sourcesCache.expires) return _sourcesCache.data
+  if (_probeCache && now < _probeCache.expires) return _probeCache.data
   try {
     const res = await fetch('/api/m/search/public/sources')
-    if (!res.ok) return _sourcesCache?.data ?? []
-    const data = (await res.json()) as { sources?: Array<{ key: string; label: string }> }
-    _sourcesCache = { data: data.sources ?? [], expires: now + 60_000 }
-    return _sourcesCache.data
+    if (!res.ok) return _probeCache?.data ?? { sources: [], shopCardProvider: false }
+    const data = (await res.json()) as { sources?: Array<{ key: string; label: string }>; shopCardProvider?: boolean }
+    _probeCache = { data: { sources: data.sources ?? [], shopCardProvider: data.shopCardProvider === true }, expires: now + 60_000 }
+    return _probeCache.data
   } catch {
-    return _sourcesCache?.data ?? []
+    return _probeCache?.data ?? { sources: [], shopCardProvider: false }
   }
 }
 
@@ -136,7 +137,7 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
       )}
       {showGhostDropdown && props.presentation !== 'iconButton' && (
         <div style={{ marginTop: 6, border: '1px solid var(--color-border)', borderRadius: 10, padding: '.375rem', opacity: 0.6, pointerEvents: 'none' }}>
-          {props.productDisplay === 'cards' ? (
+          {props.productDisplay === 'cards' || props.productDisplay === 'shopCards' ? (
             <div className="srch-cardgrid" style={{ ['--srch-cols' as string]: String(parseInt(props.dropdownColumns ?? '3', 10) || 3) } as React.CSSProperties}>
               {[0, 1, 2].map((i) => (
                 <span key={i} className="srch-card">
@@ -274,9 +275,12 @@ export const siteSearchPuckComponent = {
     },
     productDisplay: {
       type: 'select' as const, label: 'Products shown as',
+      // 'shopCards' (the designed Product Card template, stamped by the shop
+      // module) is stripped by resolveFields when no provider is registered.
       options: [
         { value: 'rows', label: 'Rows (like other results)' },
         { value: 'cards', label: 'Product cards' },
+        { value: 'shopCards', label: 'Designed product cards (from the shop)' },
       ],
     },
     dropdownColumns: {
@@ -348,7 +352,8 @@ export const siteSearchPuckComponent = {
   async resolveFields(data: { props: SiteSearchBlockProps }, { fields }: { fields: Record<string, unknown> }) {
     const next = { ...fields }
     const props = data.props ?? {}
-    const available = await fetchAvailableSources()
+    const probe = await fetchProbe()
+    const available = probe.sources
     const availableKeys = new Set(available.map((s) => s.key))
 
     // Only offer toggles for sources this install actually has.
@@ -356,6 +361,14 @@ export const siteSearchPuckComponent = {
       if (available.length > 0 && !availableKeys.has(m.key)) delete next[m.field]
     }
     const shopPresent = available.length === 0 || availableKeys.has('shop-product')
+
+    // Without a registered shop-cards provider the designed-card option cannot
+    // be honoured - trim it from the select rather than let it silently fall
+    // back to plain rows at render time.
+    if (!probe.shopCardProvider) {
+      const pd = next.productDisplay as { options?: Array<{ value: string }> } | undefined
+      if (pd?.options) next.productDisplay = { ...pd, options: pd.options.filter((o) => o.value !== 'shopCards') }
+    }
 
     const mode = props.mode ?? 'page'
     if (mode === 'page') {
@@ -378,7 +391,7 @@ export const siteSearchPuckComponent = {
         delete next.productDisplay
         delete next.dropdownColumns
         delete next.showPrices
-      } else if ((props.productDisplay ?? 'rows') !== 'cards') {
+      } else if (!['cards', 'shopCards'].includes(props.productDisplay ?? 'rows')) {
         delete next.dropdownColumns
       }
     }

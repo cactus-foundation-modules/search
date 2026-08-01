@@ -39,7 +39,7 @@ function toConfig(props: SiteSearchBlockProps): SearchBoxPublicConfig {
     widthPx: Math.max(120, Math.min(1200, props.widthPx ?? 320)),
     align: pick(props.align, ['left', 'centre', 'right'] as const, 'left'),
     dropdownWidth: pick(props.dropdownWidth, ['field', 'container', 'viewport'] as const, 'field'),
-    productDisplay: pick(props.productDisplay, ['rows', 'cards'] as const, 'rows'),
+    productDisplay: pick(props.productDisplay, ['rows', 'cards', 'shopCards'] as const, 'rows'),
     dropdownColumns: parseInt(props.dropdownColumns ?? '3', 10) || 3,
     display: {
       showThumbnails: props.showThumbnails !== 'no',

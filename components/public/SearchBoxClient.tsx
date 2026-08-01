@@ -32,7 +32,7 @@ export type SearchBoxPublicConfig = {
   widthPx: number
   align: 'left' | 'centre' | 'right'
   dropdownWidth: 'field' | 'container' | 'viewport'
-  productDisplay: 'rows' | 'cards'
+  productDisplay: 'rows' | 'cards' | 'shopCards'
   dropdownColumns: number
   display: HitDisplayOptions
   viewAllLabel: string
@@ -69,6 +69,15 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   const boxRef = useRef<HTMLDivElement | null>(null)
   const baseId = useId().replace(/[^a-zA-Z0-9-]/g, '')
   const listboxId = `srch-list-${baseId}`
+
+  // Designed shop cards ('shopCards'): the shop's Product Card template can
+  // only be stamped server-side, so the island fetches /search/cards (an RSC
+  // page) and lifts the `#srch-shop-cards` fragment into the dropdown. Keyed by
+  // the product-id list, cached for the session; `html: null` records a fetch
+  // or extraction failure for that key, which drops that render back to the
+  // search-owned ProductCardLite so the dropdown never goes quietly product-less.
+  const [shopCards, setShopCards] = useState<{ key: string; html: string | null } | null>(null)
+  const shopCardsCacheRef = useRef<Map<string, string | null>>(new Map())
 
   const live = config.mode !== 'page'
   // iconButton and overlay mode both put the real input inside the overlay
@@ -133,6 +142,37 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     }
     debounceRef.current = setTimeout(() => runSearch(term), config.debounceMs)
   }
+
+  // Fetch the server-stamped card fragment whenever the product ids in view
+  // change. The seq guard mirrors runSearch: a stale response never lands.
+  const productHitIds = config.productDisplay === 'shopCards'
+    ? hits.filter((h) => h.source === 'shop-product').map((h) => h.entityId)
+    : []
+  const shopCardsKey = productHitIds.join(',')
+  useEffect(() => {
+    if (!shopCardsKey) return
+    const cached = shopCardsCacheRef.current.get(shopCardsKey)
+    if (cached !== undefined) {
+      setShopCards({ key: shopCardsKey, html: cached })
+      return
+    }
+    const seq = seqRef.current
+    const params = new URLSearchParams({ ids: shopCardsKey, cols: String(config.dropdownColumns) })
+    fetch(`/search/cards?${params.toString()}`)
+      .then((res) => (res.ok ? res.text() : null))
+      .then((text) => {
+        const fragment = text ? new DOMParser().parseFromString(text, 'text/html').getElementById('srch-shop-cards') : null
+        // An empty fragment (shop closed, every id filtered out) is a "no" too.
+        const html = fragment && fragment.innerHTML.trim() !== '' ? fragment.innerHTML : null
+        shopCardsCacheRef.current.set(shopCardsKey, html)
+        if (seq !== seqRef.current) return
+        setShopCards({ key: shopCardsKey, html })
+      })
+      .catch(() => {
+        if (seq !== seqRef.current) return
+        setShopCards({ key: shopCardsKey, html: null })
+      })
+  }, [shopCardsKey, config.dropdownColumns])
 
   // Close the inline dropdown on outside click.
   useEffect(() => {
@@ -204,6 +244,19 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
 
   const showsResults = live || usesOverlay
 
+  // Which hits the arrow keys walk. Server-stamped shop cards are fetched HTML
+  // with no per-option ids to point aria-activedescendant at, so in that state
+  // products drop out of keyboard navigation (they stay mouse/touch links);
+  // while the fragment loads they are skeletons, equally unnavigable. Only the
+  // ProductCardLite fallback (html === null) keeps products in the walk.
+  const shopCardsReady = config.productDisplay === 'shopCards' && shopCards?.key === shopCardsKey
+  const shopCardsHtml = shopCardsReady ? shopCards!.html : undefined
+  const productsNavigable = config.productDisplay !== 'shopCards' || shopCardsHtml === null
+  const navHits = useMemo(
+    () => (productsNavigable ? hits : hits.filter((h) => h.source !== 'shop-product')),
+    [productsNavigable, hits],
+  )
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setOpen(false)
@@ -220,13 +273,13 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActiveIndex((i) => Math.min(hits.length - 1, i + 1))
+      setActiveIndex((i) => Math.min(navHits.length - 1, i + 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setActiveIndex((i) => Math.max(-1, i - 1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      const active = activeIndex >= 0 ? hits[activeIndex] : null
+      const active = activeIndex >= 0 ? navHits[activeIndex] : null
       if (active) window.location.href = active.url
       else goToResults()
     }
@@ -254,9 +307,10 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     if (hits.length === 0) {
       return <div className="srch-empty">{config.emptyText}</div>
     }
-    const productHits = config.productDisplay === 'cards' ? hits.filter((h) => h.source === 'shop-product') : []
-    const rowHits = config.productDisplay === 'cards' ? hits.filter((h) => h.source !== 'shop-product') : hits
-    const indexOfHit = new Map(hits.map((h, i) => [h, i]))
+    const cardsMode = config.productDisplay === 'cards' || config.productDisplay === 'shopCards'
+    const productHits = cardsMode ? hits.filter((h) => h.source === 'shop-product') : []
+    const rowHits = cardsMode ? hits.filter((h) => h.source !== 'shop-product') : hits
+    const indexOfHit = new Map(navHits.map((h, i) => [h, i]))
     const rows = (list: SearchHit[]) => list.map((hit) => (
       <ResultRow
         key={`${hit.source}:${hit.entityId}`}
@@ -266,20 +320,42 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
         id={optionId(indexOfHit.get(hit) ?? 0)}
       />
     ))
+    // The product section in shopCards mode: stamped fragment when it has
+    // arrived, skeleton tiles while it is on its way, ProductCardLite when the
+    // fetch failed or came back empty.
+    const liteGrid = (
+      <div className="srch-cardgrid" style={{ ['--srch-cols' as string]: String(config.dropdownColumns) } as React.CSSProperties}>
+        {productHits.map((hit) => (
+          <ProductCardLite
+            key={`${hit.source}:${hit.entityId}`}
+            hit={hit}
+            active={indexOfHit.get(hit) === activeIndex}
+            id={indexOfHit.has(hit) ? optionId(indexOfHit.get(hit) ?? 0) : undefined}
+          />
+        ))}
+      </div>
+    )
+    const productSection = config.productDisplay !== 'shopCards' ? liteGrid
+      : typeof shopCardsHtml === 'string' ? (
+        // Server HTML from this site's own /search/cards page - the shop's
+        // designed Product Card markup, style tags included.
+        <div className="srch-shopcards" dangerouslySetInnerHTML={{ __html: shopCardsHtml }} />
+      ) : shopCardsHtml === null ? liteGrid : (
+        <div className="srch-cardgrid" aria-hidden="true" style={{ ['--srch-cols' as string]: String(config.dropdownColumns) } as React.CSSProperties}>
+          {productHits.slice(0, config.dropdownColumns * 2).map((hit) => (
+            <span key={`${hit.source}:${hit.entityId}`} className="srch-card">
+              <span className="srch-card-img" style={{ display: 'block' }} />
+              <span className="srch-card-body" style={{ display: 'block' }}>
+                <span style={{ display: 'block', height: 12, width: '80%', background: 'var(--color-border)', borderRadius: 4 }} />
+                <span style={{ display: 'block', height: 10, width: '40%', background: 'var(--color-border)', borderRadius: 4, marginTop: 6 }} />
+              </span>
+            </span>
+          ))}
+        </div>
+      )
     return (
       <>
-        {productHits.length > 0 && (
-          <div className="srch-cardgrid" style={{ ['--srch-cols' as string]: String(config.dropdownColumns) } as React.CSSProperties}>
-            {productHits.map((hit) => (
-              <ProductCardLite
-                key={`${hit.source}:${hit.entityId}`}
-                hit={hit}
-                active={indexOfHit.get(hit) === activeIndex}
-                id={optionId(indexOfHit.get(hit) ?? 0)}
-              />
-            ))}
-          </div>
-        )}
+        {productHits.length > 0 && productSection}
         {rowHits.length > 0 && (
           config.groupResults ? (
             groupHits(rowHits).map((group) => (
@@ -297,7 +373,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
         )}
       </>
     )
-  }, [searched, hits, total, activeIndex, q, config, optionId])
+  }, [searched, hits, navHits, shopCardsHtml, total, activeIndex, q, config, optionId])
 
   const inputEl = (
     <div className="srch-input-wrap">

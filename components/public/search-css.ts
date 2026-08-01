@@ -51,6 +51,7 @@ export function searchCss(): string {
 mark.srch-mark{background:color-mix(in srgb,var(--srch-accent,var(--color-primary)) 22%,transparent);color:inherit;border-radius:2px;padding:0 1px}
 
 .srch-cardgrid{display:grid;grid-template-columns:repeat(var(--srch-cols,3),minmax(0,1fr));gap:.75rem;padding:.5rem}
+.srch-shopcards{padding:.5rem}
 .srch-card{display:block;text-decoration:none;color:var(--color-text);border:1px solid var(--color-border);border-radius:10px;overflow:hidden;background:var(--color-surface)}
 .srch-card:hover{border-color:var(--srch-accent,var(--color-primary))}
 .srch-card-img{aspect-ratio:1/1;background:var(--color-bg-subtle)}

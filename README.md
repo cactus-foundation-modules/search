@@ -22,7 +22,11 @@ top search terms and - the useful bit - searches that found nothing.
 
 If the shop module is installed and registers its `search.shop-cards` provider,
 the results page can render product hits with the site's own designed Product
-Card template, identical to the shop grids.
+Card template, identical to the shop grids. The live dropdown can do the same:
+set the Search Box block's "Products shown as" to "Designed product cards
+(from the shop)" and the dropdown fetches the server-stamped cards from
+`/search/cards` (colour swatches and all), falling back to its own plain
+cards if the shop is closed or the fetch fails.
 
 ## Installation
 
