@@ -70,7 +70,9 @@ export type SearchHit = {
   snippet: string | null
   extra: Record<string, unknown> | null
   date: string | null
-  price: { now: string; was: string | null; symbol: string } | null
+  // `from` marks a genuine price range (a product whose variations differ in
+  // price): the renderer prefixes "From" and `now` is the cheapest variation.
+  price: { now: string; was: string | null; symbol: string; from?: boolean } | null
   rank: number
 }
 

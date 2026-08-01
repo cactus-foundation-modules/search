@@ -74,6 +74,19 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   // iconButton and overlay mode both put the real input inside the overlay
   // panel; the in-flow element is only a trigger.
   const usesOverlay = config.presentation === 'iconButton' || config.mode === 'overlay'
+  // A field trigger has a place on the page, so its overlay input must open
+  // exactly over it (anchored to the trigger's rect) rather than in a centred
+  // panel. The icon button keeps the centred panel: a tiny button is no anchor.
+  const anchored = config.mode === 'overlay' && config.presentation !== 'iconButton'
+  const [anchorRect, setAnchorRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
+
+  const openOverlay = useCallback(() => {
+    if (anchored && boxRef.current) {
+      const r = boxRef.current.getBoundingClientRect()
+      setAnchorRect({ top: r.top, left: r.left, width: r.width, height: r.height })
+    }
+    setOverlayOpen(true)
+  }, [anchored])
 
   const runSearch = useCallback((term: string) => {
     const seq = ++seqRef.current
@@ -132,6 +145,40 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     if (overlayOpen) inputRef.current?.focus()
   }, [overlayOpen])
 
+  // Full-viewport dropdown: CSS alone cannot span the viewport from an
+  // absolutely-positioned child (left:50%/-50vw only works when the box sits
+  // dead-centre of the page - in a header it doesn't). Measure the box's
+  // viewport offset and pull the dropdown back by exactly that much.
+  const viewportDd = config.mode === 'inline' && config.dropdownWidth === 'viewport'
+  const [viewportInset, setViewportInset] = useState<number | null>(null)
+  useEffect(() => {
+    if (!open || !viewportDd) return
+    const sync = () => {
+      const r = boxRef.current?.getBoundingClientRect()
+      if (r) setViewportInset(r.left)
+    }
+    sync()
+    window.addEventListener('resize', sync)
+    return () => window.removeEventListener('resize', sync)
+  }, [open, viewportDd])
+
+  // Keep the anchored input glued to the trigger: the page behind the overlay
+  // can still scroll (and the window resize), which would strand a one-shot
+  // rect measurement where the trigger used to be.
+  useEffect(() => {
+    if (!overlayOpen || !anchored) return
+    const sync = () => {
+      const r = boxRef.current?.getBoundingClientRect()
+      if (r) setAnchorRect({ top: r.top, left: r.left, width: r.width, height: r.height })
+    }
+    window.addEventListener('resize', sync)
+    window.addEventListener('scroll', sync, true)
+    return () => {
+      window.removeEventListener('resize', sync)
+      window.removeEventListener('scroll', sync, true)
+    }
+  }, [overlayOpen, anchored])
+
   // Focus hotkey.
   useEffect(() => {
     if (config.hotkey === 'none') return
@@ -142,12 +189,12 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
       const modk = config.hotkey === 'modk' && e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)
       if (!slash && !modk) return
       e.preventDefault()
-      if (usesOverlay) setOverlayOpen(true)
+      if (usesOverlay) openOverlay()
       else inputRef.current?.focus()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [config.hotkey, usesOverlay])
+  }, [config.hotkey, usesOverlay, openOverlay])
 
   const goToResults = useCallback(() => {
     const term = q.trim()
@@ -281,12 +328,33 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
 
   const overlay = overlayOpen && (
     <div className="srch-overlay" onClick={(e) => { if (e.target === e.currentTarget) setOverlayOpen(false) }}>
-      <div className={`srch-overlay-panel ${appearanceClasses}`}>
-        <div className="srch-overlay-head">{inputEl}</div>
-        <div className="srch-overlay-results" role="listbox" id={listboxId}>
-          {searched && <div className="srch-dd-inner">{resultsBody}</div>}
+      {anchored && anchorRect ? (
+        // The live input sits exactly where the trigger is, so opening the
+        // overlay looks like clicking into the box, not a box teleporting.
+        <div
+          className={`srch-overlay-anchor ${appearanceClasses}`}
+          style={{ top: anchorRect.top, left: anchorRect.left, width: anchorRect.width }}
+        >
+          {inputEl}
+          {searched && (
+            <div
+              className="srch-overlay-dd"
+              role="listbox"
+              id={listboxId}
+              style={{ maxHeight: `calc(100vh - ${anchorRect.top + anchorRect.height}px - 24px)` }}
+            >
+              <div className="srch-dd-inner">{resultsBody}</div>
+            </div>
+          )}
         </div>
-      </div>
+      ) : (
+        <div className={`srch-overlay-panel ${appearanceClasses}`}>
+          <div className="srch-overlay-head">{inputEl}</div>
+          <div className="srch-overlay-results" role="listbox" id={listboxId}>
+            {searched && <div className="srch-dd-inner">{resultsBody}</div>}
+          </div>
+        </div>
+      )}
     </div>
   )
 
@@ -315,7 +383,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
           className="srch-input-wrap"
           style={{ width: '100%', cursor: 'text', textAlign: 'left' }}
           aria-label={config.ariaLabel}
-          onClick={() => setOverlayOpen(true)}
+          onClick={openOverlay}
         >
           {config.showIcon && <SearchIcon />}
           <span className="srch-input" style={{ color: 'var(--color-text-muted)' }}>{q.trim() || config.placeholder}</span>
@@ -342,6 +410,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
           className={`srch-dd${config.dropdownWidth === 'viewport' ? ' srch-dd-viewport' : config.dropdownWidth === 'container' ? ' srch-dd-wide' : ''}`}
           id={listboxId}
           role="listbox"
+          style={viewportDd && viewportInset != null ? { left: -viewportInset, marginLeft: 0, width: '100vw' } : undefined}
         >
           <div className="srch-dd-inner">{resultsBody}</div>
         </div>

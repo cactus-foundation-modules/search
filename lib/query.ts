@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
+import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
+import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { getSearchSettings } from './settings'
 import { listAvailableSources } from './indexer'
 import type { SearchHit, SearchSourceKey } from './types'
@@ -78,6 +80,46 @@ async function shopCurrencySymbol(): Promise<string> {
   }
 }
 
+// A companion module (shop-variations) that prices some products itself,
+// answering shop's `shop.product-card-prices` extension point with the cheapest
+// a shopper could pay. Mirrors modules/shop/lib/card-price.ts, but resolved
+// through the core registry directly: importing shop's lib would break builds
+// without shop.
+type CardFromPrice = { price: string; varies: boolean }
+type CardPriceProvider = { fromPrices: (productIds: string[]) => Promise<Record<string, CardFromPrice>> }
+
+const CARD_PRICE_POINT = 'shop.product-card-prices'
+
+async function resolveFromPrices(productIds: string[]): Promise<Map<string, CardFromPrice>> {
+  const out = new Map<string, CardFromPrice>()
+  if (productIds.length === 0) return out
+  const providers = (moduleExtensionPointComponents[CARD_PRICE_POINT] ?? {}) as Record<string, CardPriceProvider>
+  if (Object.keys(providers).length === 0) return out
+
+  const modules = await prisma.module.findMany({
+    where: { ...INSTALLED_MODULE_WHERE },
+    select: { manifest: true },
+  })
+  for (const mod of modules) {
+    const manifest = mod.manifest as { extensionPoints?: Array<{ point: string; id: string }> } | null
+    for (const entry of manifest?.extensionPoints ?? []) {
+      if (entry.point !== CARD_PRICE_POINT) continue
+      const provider = providers[entry.id]
+      if (!provider) continue
+      try {
+        const priced = await provider.fromPrices(productIds)
+        for (const [id, price] of Object.entries(priced)) {
+          if (!out.has(id)) out.set(id, price)
+        }
+      } catch {
+        // A provider that throws must not blank results: its products just
+        // show shop's own price, exactly as on the storefront grid.
+      }
+    }
+  }
+  return out
+}
+
 // Live price/visibility for product hits. The index never stores money or
 // stock: prices move (sales, sheet imports) while the index sleeps. A product
 // that is no longer publicly visible is dropped here even if the index lags.
@@ -85,13 +127,14 @@ async function enrichProductHits(hits: SearchHit[]): Promise<SearchHit[]> {
   const productIds = hits.filter((h) => h.source === 'shop-product').map((h) => h.entityId)
   if (productIds.length === 0) return hits
   try {
-    const [rows, symbol] = await Promise.all([
+    const [rows, symbol, fromPrices] = await Promise.all([
       prisma.$queryRaw<Array<{ id: string; price: string; sale_price: string | null }>>`
         SELECT "id", "price"::text AS price, "sale_price"::text AS sale_price
         FROM "shp_products"
         WHERE "id" = ANY(${productIds}) AND "status" = 'ACTIVE' AND "catalogue_hidden" = false
       `,
       shopCurrencySymbol(),
+      resolveFromPrices(productIds),
     ])
     const byId = new Map(rows.map((r) => [r.id, r]))
     const out: SearchHit[] = []
@@ -102,13 +145,19 @@ async function enrichProductHits(hits: SearchHit[]): Promise<SearchHit[]> {
       }
       const row = byId.get(hit.entityId)
       if (!row) continue
+      // A product priced by a companion module (variations) shows the cheapest
+      // variation - a variant parent's own price is 0 and never shown anywhere.
+      // Matches the storefront card exactly (modules/shop/lib/card-template.tsx).
+      const from = fromPrices.get(hit.entityId)
       out.push({
         ...hit,
-        price: {
-          now: row.sale_price ?? row.price,
-          was: row.sale_price ? row.price : null,
-          symbol,
-        },
+        price: from
+          ? { now: from.price, was: null, symbol, from: from.varies }
+          : {
+              now: row.sale_price ?? row.price,
+              was: row.sale_price ? row.price : null,
+              symbol,
+            },
       })
     }
     return out

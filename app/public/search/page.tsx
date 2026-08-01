@@ -15,8 +15,10 @@ function first(value: string | string[] | undefined): string {
   return (Array.isArray(value) ? value[0] : value) ?? ''
 }
 
-export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
-  const sp = await searchParams
+export async function generateMetadata({ searchParams }: Partial<Props>): Promise<Metadata> {
+  // Cores before 0.5.832 invoke module generateMetadata without searchParams -
+  // fall back to a plain title rather than throwing the whole page over.
+  const sp = (await searchParams) ?? {}
   const q = first(sp.q).trim()
   return {
     title: q ? `Search: ${q}` : 'Search',

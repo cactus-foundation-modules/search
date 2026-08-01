@@ -92,6 +92,9 @@ mark.srch-mark{background:color-mix(in srgb,var(--srch-accent,var(--color-primar
 .srch-loadmore:hover{border-color:var(--srch-accent,var(--color-primary))}
 
 .srch-overlay{position:fixed;inset:0;z-index:120;background:var(--color-overlay,rgba(0,0,0,.45))}
+.srch-overlay-anchor{position:absolute}
+.srch-overlay-anchor .srch-input-wrap{background:var(--color-surface)}
+.srch-overlay-dd{margin-top:6px;background:var(--color-surface-raised,var(--color-surface));border:1px solid var(--color-border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.14);overflow-y:auto}
 .srch-overlay-panel{background:var(--color-surface);max-width:720px;margin:6vh auto 0;border-radius:12px;border:1px solid var(--color-border);box-shadow:0 24px 64px rgba(0,0,0,.25);max-height:80vh;display:flex;flex-direction:column;overflow:hidden}
 .srch-overlay-head{padding:.75rem .75rem 0}
 .srch-overlay-results{overflow-y:auto;padding:.375rem}

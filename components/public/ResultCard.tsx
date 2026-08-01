@@ -55,7 +55,7 @@ export function HitPrice({ hit }: { hit: SearchHit }) {
   if (!hit.price) return null
   return (
     <span>
-      <span className="srch-price">{hit.price.symbol}{hit.price.now}</span>
+      <span className="srch-price">{hit.price.from ? 'From ' : ''}{hit.price.symbol}{hit.price.now}</span>
       {hit.price.was && <span className="srch-price-was">{hit.price.symbol}{hit.price.was}</span>}
     </span>
   )

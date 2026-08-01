@@ -5,10 +5,11 @@ const DEDUPE_KEY = 'search:index-empty'
 
 // Admin bell notification for the one state search cannot dig itself out of:
 // an empty index (fresh install, nothing indexed yet). Clicking it lands on
-// the Search dashboard, which auto-starts the first build when the index is
-// empty - so the notification IS the one-click fix. Cleared the moment the
-// index holds anything. Kept to a single rolling notification by dedupeKey
-// (same pattern as core-update / contact-form:messages).
+// Settings -> Search, whose "Rebuild index now" button runs the build - the
+// standalone dashboard page is not routable on every install, so the settings
+// tab is the one destination that always exists. Cleared the moment the index
+// holds anything. Kept to a single rolling notification by dedupeKey (same
+// pattern as core-update / contact-form:messages).
 export async function syncIndexAlert(): Promise<void> {
   try {
     const rows = await prisma.$queryRaw<Array<{ count: bigint }>>`
@@ -20,8 +21,8 @@ export async function syncIndexAlert(): Promise<void> {
         type: 'message',
         dedupeKey: DEDUPE_KEY,
         title: 'Search has nothing in its index yet, so searches find nothing',
-        link: '/m/search/index',
-        // The Search dashboard auto-starts the first build on arrival, so this
+        link: '/config?tab=search',
+        // Settings -> Search carries the "Rebuild index now" button, so this
         // button genuinely does what it says.
         actionLabel: 'Build the index',
       })
