@@ -4,6 +4,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { hasPermission } from '@/lib/permissions/check'
 import { errorResponse } from '@/lib/utils'
 import { runIndex } from '@/modules/search/lib/indexer'
+import { syncIndexAlert } from '@/modules/search/lib/alerts'
 import { SEARCH_SOURCE_KEYS } from '@/modules/search/lib/types'
 
 const bodySchema = z.object({
@@ -31,5 +32,6 @@ export async function POST(request: NextRequest) {
     sources: parsed.data.sources,
     cursor: parsed.data.cursor ?? null,
   })
+  if (result.done) await syncIndexAlert()
   return NextResponse.json(result)
 }

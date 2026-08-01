@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { errorResponse } from '@/lib/utils'
 import { runIndex, purgeOldQueries } from '@/modules/search/lib/indexer'
+import { syncIndexAlert } from '@/modules/search/lib/alerts'
 import { getSearchSettings } from '@/modules/search/lib/settings'
 
 // Nightly incremental reindex + query-log purge.
@@ -16,6 +17,7 @@ export async function GET(request: NextRequest) {
   const result = await runIndex({ full: false })
   const settings = await getSearchSettings()
   const purged = await purgeOldQueries(settings.logRetentionDays)
+  await syncIndexAlert()
 
   return NextResponse.json({ ok: true, ...result, purgedQueries: purged })
 }

@@ -1,6 +1,6 @@
 {
   "name": "search",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "tablePrefix": "srch_",
   "requiresCoreVersion": "0.5.825",
   "description": "Site-wide search across pages, shop, articles, directory, forum and members, with a configurable search box and results page.",
@@ -9,6 +9,7 @@
     "search.view",
     "search.manage"
   ],
+  "navGroupLabel": "Search",
   "navEntries": [
     {
       "label": "Search",
@@ -56,7 +57,11 @@
       "import": "./components/puck/SiteSearchBlock",
       "rscImport": "./components/puck/SiteSearchBlock.rsc",
       "component": "siteSearchPuckComponent",
-      "rscComponent": "siteSearchPuckRscComponent"
+      "rscComponent": "siteSearchPuckRscComponent",
+      "layoutTypes": [
+        "header",
+        "searchResults"
+      ]
     },
     {
       "type": "SiteSearchResults",

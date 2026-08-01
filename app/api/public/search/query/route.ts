@@ -48,6 +48,13 @@ export async function GET(request: NextRequest) {
     snippetLength: params.snippet,
   })
 
+  // An empty first page might mean "nothing matches" or "nothing indexed yet" -
+  // let the alert sync decide (it only bells on a genuinely empty index).
+  if (params.offset === 0 && result.total === 0) {
+    const { syncIndexAlert } = await import('@/modules/search/lib/alerts')
+    await syncIndexAlert()
+  }
+
   // Log once per query (first page only), when logging is on. Query text and
   // counts only - never who searched.
   if (params.offset === 0) {

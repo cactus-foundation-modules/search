@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { listAvailableSources } from '@/modules/search/lib/indexer'
+import { syncIndexAlert } from '@/modules/search/lib/alerts'
 
 // Probe used by the Puck blocks' resolveFields to narrow their sidebars to the
 // sources this install actually has, and to offer the designed-shop-card
@@ -9,6 +10,9 @@ import { listAvailableSources } from '@/modules/search/lib/indexer'
 // public pages themselves reveal.
 export async function GET() {
   const sources = await listAvailableSources()
+  // Cheapest early hook for the "index needs building" bell: this endpoint is
+  // hit as soon as anyone opens the page-builder panel for a search block.
+  await syncIndexAlert()
   const shopCardProvider = Boolean(
     (moduleExtensionPointComponents['search.shop-cards']?.shop as { renderProductCards?: unknown } | undefined)?.renderProductCards,
   )

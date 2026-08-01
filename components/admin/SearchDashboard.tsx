@@ -43,6 +43,7 @@ export default function SearchDashboard() {
   const [progress, setProgress] = useState<{ processed: number; deleted: number } | null>(null)
   const [runErrors, setRunErrors] = useState<string[]>([])
   const cancelRef = useRef(false)
+  const autoStartedRef = useRef(false)
 
   const refresh = useCallback(() => {
     Promise.all([
@@ -98,6 +99,18 @@ export default function SearchDashboard() {
       refresh()
     }
   }
+
+  // First visit on a fresh install: the index is empty and nothing can be
+  // found until it is built, so build it - no button hunt required. This is
+  // also what the "Search index needs building" bell notification lands on.
+  useEffect(() => {
+    if (!status || autoStartedRef.current || rebuilding !== null) return
+    if (status.totalDocuments !== 0) return
+    autoStartedRef.current = true
+    const t = setTimeout(() => rebuild(), 0)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild is stable per mount; guarding via refs
+  }, [status])
 
   if (forbidden) {
     return <div className="alert alert-danger">You need the search permission to view this page.</div>
