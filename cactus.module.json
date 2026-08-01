@@ -1,0 +1,72 @@
+{
+  "name": "search",
+  "version": "0.1.0",
+  "tablePrefix": "srch_",
+  "requiresCoreVersion": "0.5.825",
+  "description": "Site-wide search across pages, shop, articles, directory, forum and members, with a configurable search box and results page.",
+  "publicBasePath": "search",
+  "permissions": [
+    "search.view",
+    "search.manage"
+  ],
+  "navEntries": [
+    {
+      "label": "Search",
+      "path": "/m/search/index",
+      "icon": "<circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m21 21-4.3-4.3\"/>",
+      "permission": "search.view"
+    }
+  ],
+  "settingsTabs": [
+    {
+      "id": "search",
+      "label": "Search",
+      "permission": "search.manage",
+      "import": "./components/admin/SearchSettingsTab",
+      "component": "SearchSettingsTab"
+    }
+  ],
+  "requiredEnvVars": [],
+  "cookieCategories": [],
+  "teardown": [
+    "srch_queries",
+    "srch_documents",
+    "srch_settings"
+  ],
+  "cronJobs": [
+    {
+      "path": "/api/m/search/cron/reindex",
+      "schedule": "0 4 * * *"
+    }
+  ],
+  "layoutTypes": {
+    "groupLabel": "Search",
+    "types": [
+      {
+        "key": "searchResults",
+        "label": "Results page",
+        "starterImport": "./lib/starterLayouts",
+        "starterExport": "searchResultsStarters"
+      }
+    ]
+  },
+  "puckBlocks": [
+    {
+      "type": "SiteSearch",
+      "import": "./components/puck/SiteSearchBlock",
+      "rscImport": "./components/puck/SiteSearchBlock.rsc",
+      "component": "siteSearchPuckComponent",
+      "rscComponent": "siteSearchPuckRscComponent"
+    },
+    {
+      "type": "SiteSearchResults",
+      "import": "./components/puck/SiteSearchResultsBlock",
+      "rscImport": "./components/puck/SiteSearchResultsBlock.rsc",
+      "component": "siteSearchResultsPuckComponent",
+      "rscComponent": "siteSearchResultsPuckRscComponent",
+      "layoutTypes": [
+        "searchResults"
+      ]
+    }
+  ]
+}

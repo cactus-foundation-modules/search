@@ -1,0 +1,54 @@
+import type { Metadata } from 'next'
+import { Render } from '@puckeditor/core/rsc'
+import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
+import { getModuleLayoutPuckRscConfig } from '@/lib/puck/config.rsc'
+import { injectSearchContext } from '@/modules/search/lib/inject-search-context'
+import type { PuckData } from '@/modules/search/lib/types'
+import { SiteSearchBlockRsc } from '@/modules/search/components/puck/SiteSearchBlock.rsc'
+import { siteSearchPuckComponent } from '@/modules/search/components/puck/SiteSearchBlock'
+import { SiteSearchResultsBlockRsc } from '@/modules/search/components/puck/SiteSearchResultsBlock.rsc'
+import { siteSearchResultsPuckComponent } from '@/modules/search/components/puck/SiteSearchResultsBlock'
+
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> }
+
+function first(value: string | string[] | undefined): string {
+  return (Array.isArray(value) ? value[0] : value) ?? ''
+}
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const sp = await searchParams
+  const q = first(sp.q).trim()
+  return {
+    title: q ? `Search: ${q}` : 'Search',
+    robots: { index: false, follow: false },
+  }
+}
+
+export default async function SearchPage({ searchParams }: Props) {
+  const sp = await searchParams
+  const ctx = {
+    searchQuery: first(sp.q).trim().slice(0, 200),
+    searchPageNum: Math.max(1, parseInt(first(sp.page) || '1', 10) || 1),
+    searchSort: first(sp.sort) === 'newest' ? 'newest' : 'relevance',
+    searchSourcesParam: first(sp.sources).slice(0, 300),
+  }
+
+  const layout = await resolveThemeLayout('searchResults', { moduleName: 'search' })
+  if (layout?.builderData) {
+    const data = injectSearchContext(layout.builderData as PuckData, ctx)
+    return <Render config={getModuleLayoutPuckRscConfig('searchResults') as any} data={data as any} />
+  }
+
+  // No published layout yet: render the starter arrangement directly so the
+  // page works out of the box.
+  const boxProps = { ...siteSearchPuckComponent.defaultProps, mode: 'page', presentation: 'fieldWithButton', size: 'large', ...ctx }
+  const resultsProps = { ...siteSearchResultsPuckComponent.defaultProps, ...ctx }
+  return (
+    <div style={{ maxWidth: 860, margin: '0 auto', padding: '2rem 1rem' }}>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <SiteSearchBlockRsc {...boxProps} />
+      </div>
+      <SiteSearchResultsBlockRsc {...resultsProps} />
+    </div>
+  )
+}
