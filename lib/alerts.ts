@@ -19,8 +19,11 @@ export async function syncIndexAlert(): Promise<void> {
       await upsertAlert({
         type: 'message',
         dedupeKey: DEDUPE_KEY,
-        title: 'Search index needs building - open Search and it starts itself',
+        title: 'Search has nothing in its index yet, so searches find nothing',
         link: '/m/search/index',
+        // The Search dashboard auto-starts the first build on arrival, so this
+        // button genuinely does what it says.
+        actionLabel: 'Build the index',
       })
     } else {
       await clearAlert(DEDUPE_KEY)

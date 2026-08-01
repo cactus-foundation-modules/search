@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ALLOWED_LANGUAGES, type SearchSettings, type SearchSourceKey } from '@/modules/search/lib/types'
 
 type StatusSource = { key: SearchSourceKey; label: string; available: boolean; enabled: boolean; documentCount: number }
@@ -20,6 +20,48 @@ export function SearchSettingsTab() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rebuilding, setRebuilding] = useState(false)
+  const [rebuildDone, setRebuildDone] = useState<number | null>(null)
+  const [rebuildProgress, setRebuildProgress] = useState(0)
+  const rebuildCancelRef = useRef(false)
+
+  // Same cursor loop as the Search dashboard: one bounded batch per request,
+  // repeated until done, so any size of site rebuilds without a timeout.
+  const rebuildIndex = async () => {
+    setRebuilding(true)
+    setRebuildDone(null)
+    setRebuildProgress(0)
+    rebuildCancelRef.current = false
+    type RebuildCursor = { source: SearchSourceKey; offset: number } | null
+    let cursor: RebuildCursor = null
+    let processed = 0
+    try {
+      for (let guard = 0; guard < 500; guard++) {
+        if (rebuildCancelRef.current) break
+        const res = await fetch('/api/m/search/admin/reindex', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full: true, cursor }),
+        })
+        if (!res.ok) {
+          setError('Rebuild failed - try again.')
+          break
+        }
+        const result = (await res.json()) as { done: boolean; cursor: RebuildCursor; processed: number }
+        processed += result.processed
+        setRebuildProgress(processed)
+        if (result.done) {
+          setRebuildDone(processed)
+          break
+        }
+        cursor = result.cursor
+      }
+    } catch {
+      setError('Rebuild failed - try again.')
+    } finally {
+      setRebuilding(false)
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -175,6 +217,24 @@ export function SearchSettingsTab() {
         </button>
         {saved && <span style={{ fontSize: '.8125rem', color: 'var(--color-success)' }}>Saved.</span>}
         {error && <span style={{ fontSize: '.8125rem', color: 'var(--color-danger)' }}>{error}</span>}
+      </div>
+
+      <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)', maxWidth: 480 }}>
+        <label style={labelStyle}>Search index</label>
+        <p style={{ fontSize: '.75rem', color: 'var(--color-text-muted)', margin: '0 0 .5rem' }}>
+          Refreshes itself overnight. Rebuild after changing the language or the switches above, or any time results look stale.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem' }}>
+          <button className="btn" onClick={rebuildIndex} disabled={rebuilding}>
+            {rebuilding ? `Rebuilding… ${rebuildProgress} done` : 'Rebuild index now'}
+          </button>
+          {rebuilding && (
+            <button className="btn" onClick={() => { rebuildCancelRef.current = true }}>Stop</button>
+          )}
+          {rebuildDone !== null && !rebuilding && (
+            <span style={{ fontSize: '.8125rem', color: 'var(--color-success)' }}>Done - {rebuildDone} items indexed.</span>
+          )}
+        </div>
       </div>
     </div>
   )
