@@ -24,7 +24,12 @@ export type SearchBoxPublicConfig = {
   buttonLabel: string
   ariaLabel: string
   showIcon: boolean
-  size: 'small' | 'medium' | 'large'
+  // Appearance size, resolved upstream: the desktop class plus the media rules
+  // for any breakpoint that differs (empty when the box has one size at every
+  // width), and the block id those rules are scoped to.
+  sizeClass: string
+  sizeCss: string
+  blockId: string
   cornerStyle: 'square' | 'rounded' | 'pill'
   fieldStyle: 'outlined' | 'filled' | 'minimal'
   accent: 'primary' | 'link' | 'neutral'
@@ -286,11 +291,14 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   }
 
   const appearanceClasses = [
-    `srch-size-${config.size}`,
+    config.sizeClass,
     `srch-corner-${config.cornerStyle}`,
     `srch-style-${config.fieldStyle}`,
     `srch-accent-${config.accent}`,
   ].join(' ')
+  // Per-breakpoint size overrides for this box only (empty unless a breakpoint
+  // differs from desktop). Rendered inside the box so it travels with the block.
+  const sizeStyle = config.sizeCss ? <style dangerouslySetInnerHTML={{ __html: config.sizeCss }} /> : null
   const boxClasses = [
     'srch-box',
     appearanceClasses,
@@ -458,7 +466,8 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
 
   if (config.presentation === 'iconButton') {
     return (
-      <div className={boxClasses} ref={boxRef}>
+      <div className={boxClasses} data-srch-id={config.blockId || undefined} ref={boxRef}>
+        {sizeStyle}
         <button
           type="button"
           className="srch-iconbtn"
@@ -475,7 +484,8 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   if (config.mode === 'overlay') {
     // In-flow trigger only; the live input lives in the overlay panel.
     return (
-      <div className={boxClasses} style={boxStyle} ref={boxRef}>
+      <div className={boxClasses} data-srch-id={config.blockId || undefined} style={boxStyle} ref={boxRef}>
+        {sizeStyle}
         <button
           type="button"
           className="srch-input-wrap"
@@ -494,7 +504,8 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   // 'page' mode is a plain GET form (works without JavaScript - the input is
   // name="q"); 'inline' adds the live dropdown on top of the same markup.
   return (
-    <div className={boxClasses} style={boxStyle} ref={boxRef}>
+    <div className={boxClasses} data-srch-id={config.blockId || undefined} style={boxStyle} ref={boxRef}>
+      {sizeStyle}
       <form
         action={config.resultsPath || '/search'}
         method="get"

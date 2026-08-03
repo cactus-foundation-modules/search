@@ -1,4 +1,9 @@
-import { searchCss } from '../public/search-css'
+import { searchCss, SRCH_SIZE_VARS } from '../public/search-css'
+// Field widget via the registry, never a direct import of its own module: that
+// module pulls in the Puck editor (and the TipTap it vendors), and this file is
+// on the public render path. Same rule core's config.tsx follows.
+import { ResponsiveSelectField } from '@/lib/puck/fields/registry'
+import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type Device, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import type { SearchSourceKey } from '@/modules/search/lib/types'
 
 // Editor half only. The live render (with the client search island) is in
@@ -24,6 +29,8 @@ async function fetchProbe(): Promise<ProbeResult> {
 }
 
 export type SiteSearchBlockProps = {
+  // Puck's own block id, injected on every render - scopes this box's CSS.
+  id?: string
   // Behaviour
   mode?: string
   minChars?: number
@@ -48,7 +55,9 @@ export type SiteSearchBlockProps = {
   buttonLabel?: string
   ariaLabel?: string
   showIcon?: string
-  size?: string
+  // Per-breakpoint (ResponsiveValue); a plain string is legacy desktop-only data
+  // and normalises on read, so nothing needs migrating.
+  size?: ResponsiveValue<string> | string
   cornerStyle?: string
   fieldStyle?: string
   accent?: string
@@ -102,12 +111,29 @@ const yesNo = [
   { value: 'no', label: 'No' },
 ]
 
+// Size is per-breakpoint: the desktop value rides the existing srch-size-* class
+// (so a box that has never been touched renders byte-identically and emits no
+// extra CSS), and any breakpoint that differs re-declares the three size vars in
+// a media rule scoped to this one box by its Puck id. Shared by the editor half
+// below and the RSC half, so the canvas and the live page can't drift.
+export function searchSizeStyles(size: SiteSearchBlockProps['size'], id: string | undefined): { sizeClass: string; sizeCss: string } {
+  const rv = normalizeResponsiveValue<string>(size)
+  const at = (d: Device): 'small' | 'medium' | 'large' => {
+    const v = pickResponsive(rv, d)
+    return v === 'small' || v === 'large' ? v : 'medium'
+  }
+  return {
+    sizeClass: `srch-size-${at('desktop')}`,
+    sizeCss: id ? responsiveMediaCssFor(`[data-srch-id="${id}"]`, (d) => SRCH_SIZE_VARS[at(d)]) : '',
+  }
+}
+
 export function SiteSearchBlock(props: SiteSearchBlockProps) {
-  const size = props.size ?? 'medium'
+  const { sizeClass, sizeCss } = searchSizeStyles(props.size, props.id)
   const showGhostDropdown = (props.mode ?? 'page') !== 'page'
   const boxClasses = [
     'srch-box',
-    `srch-size-${size}`,
+    sizeClass,
     `srch-corner-${props.cornerStyle ?? 'rounded'}`,
     `srch-style-${props.fieldStyle ?? 'outlined'}`,
     `srch-accent-${props.accent ?? 'primary'}`,
@@ -118,8 +144,9 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
     : { width: '100%' }
 
   return (
-    <div className={boxClasses} style={boxStyle}>
+    <div className={boxClasses} style={boxStyle} data-srch-id={props.id}>
       <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
+      {sizeCss && <style dangerouslySetInnerHTML={{ __html: sizeCss }} />}
       {props.presentation === 'iconButton' ? (
         <span className="srch-iconbtn" aria-hidden="true">
           <svg className="srch-iconsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
@@ -217,12 +244,13 @@ export const siteSearchPuckComponent = {
     ariaLabel: { type: 'text' as const, label: 'Screen-reader label' },
     showIcon: { type: 'select' as const, label: 'Show magnifier icon', options: yesNo },
     size: {
-      type: 'select' as const, label: 'Size',
+      type: 'custom' as const, label: 'Size',
       options: [
         { value: 'small', label: 'Small' },
         { value: 'medium', label: 'Medium' },
         { value: 'large', label: 'Large' },
       ],
+      render: ResponsiveSelectField,
     },
     cornerStyle: {
       type: 'select' as const, label: 'Corners',
@@ -330,7 +358,7 @@ export const siteSearchPuckComponent = {
     buttonLabel: 'Search',
     ariaLabel: 'Search this site',
     showIcon: 'yes',
-    size: 'medium',
+    size: { desktop: 'medium' },
     cornerStyle: 'rounded',
     fieldStyle: 'outlined',
     accent: 'primary',

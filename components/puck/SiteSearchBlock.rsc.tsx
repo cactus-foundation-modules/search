@@ -2,7 +2,7 @@ import { connection } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { searchCss } from '../public/search-css'
 import SearchBoxClient, { type SearchBoxPublicConfig } from '../public/SearchBoxClient'
-import { siteSearchPuckComponent, sourcesFromProps, type SiteSearchBlockProps } from './SiteSearchBlock'
+import { searchSizeStyles, siteSearchPuckComponent, sourcesFromProps, type SiteSearchBlockProps } from './SiteSearchBlock'
 
 // Server (RSC) half of the Search Box. Only the display subset of the props
 // crosses to the client island - and every prop here IS display config, so the
@@ -31,7 +31,10 @@ function toConfig(props: SiteSearchBlockProps): SearchBoxPublicConfig {
     buttonLabel: props.buttonLabel?.trim() || 'Search',
     ariaLabel: props.ariaLabel?.trim() || 'Search this site',
     showIcon: props.showIcon !== 'no',
-    size: pick(props.size, ['small', 'medium', 'large'] as const, 'medium'),
+    // Size resolves to a desktop class plus (only when a breakpoint differs) a
+    // media rule scoped to this box - see searchSizeStyles.
+    ...(() => { const { sizeClass, sizeCss } = searchSizeStyles(props.size, props.id); return { sizeClass, sizeCss } })(),
+    blockId: props.id ?? '',
     cornerStyle: pick(props.cornerStyle, ['square', 'rounded', 'pill'] as const, 'rounded'),
     fieldStyle: pick(props.fieldStyle, ['outlined', 'filled', 'minimal'] as const, 'outlined'),
     accent: pick(props.accent, ['primary', 'link', 'neutral'] as const, 'primary'),

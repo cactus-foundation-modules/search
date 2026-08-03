@@ -2,15 +2,25 @@
 // need it (never a core globals.css edit - the stylesheet travels with the
 // block). Semantic tokens only; class prefix srch-.
 
+// The three sizes as bare declarations rather than only as finished rules: the
+// Size field is per-breakpoint, and a box set to (say) Medium on desktop and
+// Small on phones needs the same values again inside a media query scoped to
+// that one box. Exported so there is one place to change a size, not two.
+export const SRCH_SIZE_VARS: Record<'small' | 'medium' | 'large', string> = {
+  small: '--srch-pad:.375rem .625rem;--srch-font:.8125rem;--srch-icon:14px',
+  medium: '--srch-pad:.5rem .75rem;--srch-font:.9375rem;--srch-icon:16px',
+  large: '--srch-pad:.75rem 1rem;--srch-font:1.0625rem;--srch-icon:18px',
+}
+
 export function searchCss(): string {
   return `
 .srch-box{position:relative;font-family:inherit}
 .srch-box.srch-align-centre{margin-left:auto;margin-right:auto}
 .srch-box.srch-align-right{margin-left:auto}
 
-.srch-size-small{--srch-pad:.375rem .625rem;--srch-font:.8125rem;--srch-icon:14px}
-.srch-size-medium{--srch-pad:.5rem .75rem;--srch-font:.9375rem;--srch-icon:16px}
-.srch-size-large{--srch-pad:.75rem 1rem;--srch-font:1.0625rem;--srch-icon:18px}
+.srch-size-small{${SRCH_SIZE_VARS.small}}
+.srch-size-medium{${SRCH_SIZE_VARS.medium}}
+.srch-size-large{${SRCH_SIZE_VARS.large}}
 .srch-corner-square{--srch-radius:0}
 .srch-corner-rounded{--srch-radius:8px}
 .srch-corner-pill{--srch-radius:999px}
