@@ -20,8 +20,11 @@ export type SearchBoxPublicConfig = {
   resultsPath: string
   sources: string[]
   presentation: 'field' | 'iconButton' | 'fieldWithButton'
-  // Icon button only: where the live field goes when the magnifier is tapped.
+  // Icon button only: where the live field goes when the magnifier is tapped,
+  // and an explicit glyph size (0 = take it from the Size setting) for lining
+  // the magnifier up with whatever other icons share its row.
   iconOpens: 'overlay' | 'bar'
+  iconSize: number
   placeholder: string
   buttonLabel: string
   ariaLabel: string
@@ -522,7 +525,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
 
   if (config.presentation === 'iconButton') {
     return (
-      <div className={boxClasses} data-srch-id={config.blockId || undefined} ref={boxRef}>
+      <div className={`${boxClasses} srch-box-icon`} data-srch-id={config.blockId || undefined} ref={boxRef}>
         {sizeStyle}
         <button
           type="button"
@@ -530,6 +533,10 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
           aria-label={config.ariaLabel}
           aria-expanded={overlayOpen}
           onClick={openOverlay}
+          // Set on the button, not the wrapper: the bar/overlay render inside
+          // that wrapper, and their field's own magnifier should keep tracking
+          // the Size setting rather than inheriting the trigger's glyph size.
+          style={config.iconSize ? ({ '--srch-icon': `${config.iconSize}px` } as React.CSSProperties) : undefined}
         >
           <SearchIcon />
         </button>

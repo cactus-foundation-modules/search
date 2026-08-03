@@ -45,9 +45,17 @@ export function searchCss(): string {
    and the padding (leaving the glyph alone at its --srch-icon size), 'filled'
    keeps a soft chip. 'outlined' is the default and is untouched. */
 .srch-style-filled .srch-iconbtn{background:var(--color-bg-subtle);border-color:transparent}
-.srch-style-minimal .srch-iconbtn{background:transparent;border-color:transparent;padding:0;border-radius:0}
+/* border:none, not a transparent border: a 1px transparent edge still measures,
+   so the button came out 2px bigger than the glyph and would never line up with
+   the bare icons either side of it. */
+.srch-style-minimal .srch-iconbtn{background:transparent;border:none;padding:0;border-radius:0}
 .srch-style-minimal .srch-iconbtn .srch-iconsvg{color:currentColor}
-.srch-style-minimal .srch-iconbtn:hover{border-color:transparent;color:var(--srch-accent)}
+.srch-style-minimal .srch-iconbtn:hover{color:var(--srch-accent)}
+/* The icon button is inline-flex, so in a plain block wrapper it sits on the
+   text baseline with the line box's descender space below it - which rides the
+   glyph 2-3px above the centre line of the icons beside it in a header row.
+   Making the wrapper a flex box takes the baseline out of it entirely. */
+.srch-box-icon{display:inline-flex;align-items:center;line-height:0}
 
 .srch-dd{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:60;background:var(--color-surface-raised,var(--color-surface));border:1px solid var(--color-border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.14);overflow:hidden;max-height:70vh;overflow-y:auto}
 .srch-dd-viewport{left:50%;right:auto;margin-left:-50vw;width:100vw;border-radius:0;border-left:none;border-right:none}

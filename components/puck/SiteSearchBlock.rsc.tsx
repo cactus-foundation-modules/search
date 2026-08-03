@@ -28,6 +28,9 @@ function toConfig(props: SiteSearchBlockProps): SearchBoxPublicConfig {
     sources: sourcesFromProps(props),
     presentation: pick(props.presentation, ['field', 'iconButton', 'fieldWithButton'] as const, 'field'),
     iconOpens: pick(props.iconOpens, ['overlay', 'bar'] as const, 'overlay'),
+    // 0 means "no override" - the glyph then comes from the Size setting's
+    // --srch-icon, exactly as it did before this field existed.
+    iconSize: Math.max(0, Math.min(64, props.iconSize ?? 0)),
     placeholder: props.placeholder ?? 'Search…',
     buttonLabel: props.buttonLabel?.trim() || 'Search',
     ariaLabel: props.ariaLabel?.trim() || 'Search this site',

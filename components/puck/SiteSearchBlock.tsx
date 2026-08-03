@@ -52,6 +52,7 @@ export type SiteSearchBlockProps = {
   // Appearance
   presentation?: string
   iconOpens?: string
+  iconSize?: number
   placeholder?: string
   buttonLabel?: string
   ariaLabel?: string
@@ -145,11 +146,22 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
     : { width: '100%' }
 
   return (
-    <div className={boxClasses} style={boxStyle} data-srch-id={props.id}>
+    <div
+      className={props.presentation === 'iconButton' ? `${boxClasses} srch-box-icon` : boxClasses}
+      // An icon button is its own width in the live render (no boxStyle at
+      // all), so the canvas must not stretch it to 100% either - same markup,
+      // same box, editor and page.
+      style={props.presentation === 'iconButton' ? undefined : boxStyle}
+      data-srch-id={props.id}
+    >
       <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
       {sizeCss && <style dangerouslySetInnerHTML={{ __html: sizeCss }} />}
       {props.presentation === 'iconButton' ? (
-        <span className="srch-iconbtn" aria-hidden="true">
+        <span
+          className="srch-iconbtn"
+          aria-hidden="true"
+          style={props.iconSize ? ({ '--srch-icon': `${props.iconSize}px` } as React.CSSProperties) : undefined}
+        >
           <svg className="srch-iconsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
         </span>
       ) : (
@@ -247,6 +259,7 @@ export const siteSearchPuckComponent = {
         { value: 'bar', label: 'A bar under the header' },
       ],
     },
+    iconSize: { type: 'number' as const, label: 'Icon size in px (blank = follow Size)', min: 10, max: 64 },
     placeholder: { type: 'text' as const, label: 'Placeholder text' },
     buttonLabel: { type: 'text' as const, label: 'Button label' },
     ariaLabel: { type: 'text' as const, label: 'Screen-reader label' },
@@ -435,8 +448,9 @@ export const siteSearchPuckComponent = {
 
     const presentation = props.presentation ?? 'field'
     if (presentation !== 'fieldWithButton') delete next.buttonLabel
-    // Where the icon's field opens is only a question for the icon button.
-    if (presentation !== 'iconButton') delete next.iconOpens
+    // Where the icon's field opens, and how big the glyph is, are only
+    // questions for the icon button.
+    if (presentation !== 'iconButton') { delete next.iconOpens; delete next.iconSize }
     if (presentation === 'iconButton') {
       delete next.placeholder
       delete next.showIcon
