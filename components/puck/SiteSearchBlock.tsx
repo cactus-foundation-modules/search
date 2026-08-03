@@ -51,6 +51,7 @@ export type SiteSearchBlockProps = {
   searchMembers?: string
   // Appearance
   presentation?: string
+  iconOpens?: string
   placeholder?: string
   buttonLabel?: string
   ariaLabel?: string
@@ -239,6 +240,13 @@ export const siteSearchPuckComponent = {
         { value: 'iconButton', label: 'Icon button (opens overlay)' },
       ],
     },
+    iconOpens: {
+      type: 'select' as const, label: 'Tapping the icon opens',
+      options: [
+        { value: 'overlay', label: 'An overlay over the page' },
+        { value: 'bar', label: 'A bar under the header' },
+      ],
+    },
     placeholder: { type: 'text' as const, label: 'Placeholder text' },
     buttonLabel: { type: 'text' as const, label: 'Button label' },
     ariaLabel: { type: 'text' as const, label: 'Screen-reader label' },
@@ -354,6 +362,7 @@ export const siteSearchPuckComponent = {
     searchForum: 'yes',
     searchMembers: 'yes',
     presentation: 'field',
+    iconOpens: 'overlay',
     placeholder: 'Search…',
     buttonLabel: 'Search',
     ariaLabel: 'Search this site',
@@ -426,6 +435,8 @@ export const siteSearchPuckComponent = {
 
     const presentation = props.presentation ?? 'field'
     if (presentation !== 'fieldWithButton') delete next.buttonLabel
+    // Where the icon's field opens is only a question for the icon button.
+    if (presentation !== 'iconButton') delete next.iconOpens
     if (presentation === 'iconButton') {
       delete next.placeholder
       delete next.showIcon

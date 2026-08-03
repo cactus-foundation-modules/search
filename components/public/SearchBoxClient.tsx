@@ -20,6 +20,8 @@ export type SearchBoxPublicConfig = {
   resultsPath: string
   sources: string[]
   presentation: 'field' | 'iconButton' | 'fieldWithButton'
+  // Icon button only: where the live field goes when the magnifier is tapped.
+  iconOpens: 'overlay' | 'bar'
   placeholder: string
   buttonLabel: string
   ariaLabel: string
@@ -92,6 +94,12 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   // exactly over it (anchored to the trigger's rect) rather than in a centred
   // panel. The icon button keeps the centred panel: a tiny button is no anchor.
   const anchored = config.mode === 'overlay' && config.presentation !== 'iconButton'
+  // The icon button's other opening: a full-width bar pinned directly under the
+  // header the button lives in, instead of a panel over the page. Meant for a
+  // phone header, where a centred panel is a screenful of nothing under one
+  // input and a page-wide dropdown is wider than the page.
+  const usesBar = config.presentation === 'iconButton' && config.iconOpens === 'bar'
+  const [barTop, setBarTop] = useState(0)
   // cw = documentElement.clientWidth (viewport sans scrollbar), captured with the
   // rect so the results panel can be sized against the real viewport.
   const [anchorRect, setAnchorRect] = useState<{ top: number; left: number; width: number; height: number; cw: number } | null>(null)
@@ -101,10 +109,22 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     if (r) setAnchorRect({ top: r.top, left: r.left, width: r.width, height: r.height, cw: document.documentElement.clientWidth })
   }, [])
 
+  // Where the bar's top edge sits: the bottom of the header this box is in, so
+  // the field lands under the whole header row (menu, logo, the lot) rather
+  // than under the button. No header - a box dropped in page content - and it
+  // falls back to the box's own bottom edge, which is the same idea.
+  const measureBar = useCallback(() => {
+    const el = boxRef.current
+    if (!el) return
+    const host = el.closest('header') ?? el
+    setBarTop(Math.max(0, Math.round(host.getBoundingClientRect().bottom)))
+  }, [])
+
   const openOverlay = useCallback(() => {
     if (anchored) measureAnchor()
+    if (usesBar) measureBar()
     setOverlayOpen(true)
-  }, [anchored, measureAnchor])
+  }, [anchored, measureAnchor, usesBar, measureBar])
 
   const runSearch = useCallback((term: string) => {
     const seq = ++seqRef.current
@@ -223,6 +243,18 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
       window.removeEventListener('scroll', measureAnchor, true)
     }
   }, [overlayOpen, anchored, measureAnchor])
+
+  // Same treatment for the bar: a sticky header holds still while the page
+  // scrolls, a static one doesn't, and neither survives a rotation unmeasured.
+  useEffect(() => {
+    if (!overlayOpen || !usesBar) return
+    window.addEventListener('resize', measureBar)
+    window.addEventListener('scroll', measureBar, true)
+    return () => {
+      window.removeEventListener('resize', measureBar)
+      window.removeEventListener('scroll', measureBar, true)
+    }
+  }, [overlayOpen, usesBar, measureBar])
 
   // Focus hotkey.
   useEffect(() => {
@@ -410,6 +442,30 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     </div>
   )
 
+  // The bar. Rendered as a sibling of the button rather than through a portal:
+  // position:fixed is enough to escape the header's own box, and staying in the
+  // block's subtree keeps the editor canvas and the live page rendering the
+  // same markup. The results list only exists once a search has run, which is
+  // what keeps an untyped bar the height of its input.
+  const bar = overlayOpen && (
+    <>
+      <div className="srch-bar-catcher" onClick={() => setOverlayOpen(false)} />
+      <div className={`srch-bar ${appearanceClasses}`} style={{ top: barTop }}>
+        {inputEl}
+        {searched && (
+          <div
+            className="srch-bar-results"
+            role="listbox"
+            id={listboxId}
+            style={{ maxHeight: `calc(100vh - ${barTop}px - 5rem)` }}
+          >
+            <div className="srch-dd-inner">{resultsBody}</div>
+          </div>
+        )}
+      </div>
+    </>
+  )
+
   const overlay = overlayOpen && (
     <div className="srch-overlay" onClick={(e) => { if (e.target === e.currentTarget) setOverlayOpen(false) }}>
       {anchored && anchorRect ? (
@@ -472,11 +528,12 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
           type="button"
           className="srch-iconbtn"
           aria-label={config.ariaLabel}
-          onClick={() => setOverlayOpen(true)}
+          aria-expanded={overlayOpen}
+          onClick={openOverlay}
         >
           <SearchIcon />
         </button>
-        {overlay}
+        {usesBar ? bar : overlay}
       </div>
     )
   }

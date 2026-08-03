@@ -27,6 +27,7 @@ function toConfig(props: SiteSearchBlockProps): SearchBoxPublicConfig {
     resultsPath: props.resultsPath?.trim() || '/search',
     sources: sourcesFromProps(props),
     presentation: pick(props.presentation, ['field', 'iconButton', 'fieldWithButton'] as const, 'field'),
+    iconOpens: pick(props.iconOpens, ['overlay', 'bar'] as const, 'overlay'),
     placeholder: props.placeholder ?? 'Search…',
     buttonLabel: props.buttonLabel?.trim() || 'Search',
     ariaLabel: props.ariaLabel?.trim() || 'Search this site',

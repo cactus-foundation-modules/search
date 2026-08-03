@@ -40,6 +40,14 @@ export function searchCss(): string {
 .srch-btn:hover{filter:brightness(1.08)}
 .srch-iconbtn{display:inline-flex;align-items:center;justify-content:center;gap:.375rem;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);cursor:pointer;font:inherit;padding:var(--srch-pad);border-radius:var(--srch-radius)}
 .srch-iconbtn:hover{border-color:var(--srch-accent)}
+/* Field style applies to the icon button too, so a magnifier standing in a row
+   of bare header icons can drop its box: 'minimal' strips the border, the fill
+   and the padding (leaving the glyph alone at its --srch-icon size), 'filled'
+   keeps a soft chip. 'outlined' is the default and is untouched. */
+.srch-style-filled .srch-iconbtn{background:var(--color-bg-subtle);border-color:transparent}
+.srch-style-minimal .srch-iconbtn{background:transparent;border-color:transparent;padding:0;border-radius:0}
+.srch-style-minimal .srch-iconbtn .srch-iconsvg{color:currentColor}
+.srch-style-minimal .srch-iconbtn:hover{border-color:transparent;color:var(--srch-accent)}
 
 .srch-dd{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:60;background:var(--color-surface-raised,var(--color-surface));border:1px solid var(--color-border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.14);overflow:hidden;max-height:70vh;overflow-y:auto}
 .srch-dd-viewport{left:50%;right:auto;margin-left:-50vw;width:100vw;border-radius:0;border-left:none;border-right:none}
@@ -102,6 +110,17 @@ mark.srch-mark{background:color-mix(in srgb,var(--srch-accent,var(--color-primar
 .srch-page-link.srch-page-active{background:var(--srch-accent,var(--color-primary));border-color:var(--srch-accent,var(--color-primary));color:var(--color-on-primary)}
 .srch-loadmore{display:block;margin:1.5rem auto 0;padding:.5rem 1.25rem;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);font:inherit;cursor:pointer}
 .srch-loadmore:hover{border-color:var(--srch-accent,var(--color-primary))}
+
+/* "A bar under the header": the icon button's alternative to the overlay. The
+   bar is fixed to the viewport (its top measured from the header the button
+   sits in) and spans it edge to edge, so nothing can push the page sideways.
+   The results list is a child of the bar rather than a full-height panel, so an
+   untyped search is a search field and nothing else - no empty screen under it. */
+.srch-bar-catcher{position:fixed;inset:0;z-index:118;background:transparent}
+.srch-bar{position:fixed;left:0;right:0;z-index:119;box-sizing:border-box;background:var(--color-surface);border-bottom:1px solid var(--color-border);box-shadow:0 12px 32px rgba(0,0,0,.14);padding:.75rem}
+.srch-bar *,.srch-bar *::before,.srch-bar *::after{box-sizing:border-box}
+.srch-bar .srch-input-wrap{width:100%}
+.srch-bar-results{margin-top:.5rem;overflow-y:auto;overscroll-behavior:contain}
 
 .srch-overlay{position:fixed;inset:0;z-index:120;background:var(--color-overlay,rgba(0,0,0,.45))}
 .srch-overlay-anchor{position:absolute}
