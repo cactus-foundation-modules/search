@@ -103,7 +103,12 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
   // Designed shop cards, stamped by the shop module through the
   // search.shop-cards extension point. Absent provider = standard cards.
   const provider = (moduleExtensionPointComponents['search.shop-cards']?.shop ?? null) as ShopCardsProvider | null
-  const wantShopCards = props.productCardStyle === 'shopCard' && Boolean(provider?.renderProductCards)
+  // Unset means shop cards: a block saved from the starter arrangement (and the
+  // /search page's no-layout fallback) carries no explicit pick, and rows there
+  // would contradict the dropdown showing designed cards for the same products.
+  // An owner who chose 'standard' has it written into the layout data, so this
+  // default never overrides them.
+  const wantShopCards = (props.productCardStyle ?? 'shopCard') === 'shopCard' && Boolean(provider?.renderProductCards)
   const productHits = wantShopCards ? hits.filter((h) => h.source === 'shop-product') : []
   let shopCardsNode: ReactNode = null
   if (wantShopCards && productHits.length > 0 && provider?.renderProductCards) {

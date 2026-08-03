@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Render } from '@puckeditor/core/rsc'
+import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { getModuleLayoutPuckRscConfig } from '@/lib/puck/config.rsc'
 import { injectSearchContext } from '@/modules/search/lib/inject-search-context'
@@ -45,8 +46,14 @@ export default async function SearchPage({ searchParams }: Props) {
   // page works out of the box.
   const boxProps = { ...siteSearchPuckComponent.defaultProps, mode: 'page', presentation: 'fieldWithButton', size: 'large', ...ctx }
   const resultsProps = { ...siteSearchResultsPuckComponent.defaultProps, ...ctx }
+  // Designed shop cards sit in a multi-column grid, so the reading column that
+  // suits a list of text results squashes them. Match the shop's own pages when
+  // that is what this page will render.
+  const shopCards = resultsProps.productCardStyle === 'shopCard' && Boolean(
+    (moduleExtensionPointComponents['search.shop-cards']?.shop as { renderProductCards?: unknown } | undefined)?.renderProductCards,
+  )
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '2rem 1rem' }}>
+    <div style={{ maxWidth: shopCards ? 1200 : 860, margin: '0 auto', padding: shopCards ? '2rem 1.5rem' : '2rem 1rem' }}>
       <div style={{ marginBottom: '1.5rem' }}>
         <SiteSearchBlockRsc {...boxProps} />
       </div>

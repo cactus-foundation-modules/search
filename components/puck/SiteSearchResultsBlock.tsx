@@ -226,7 +226,10 @@ export const siteSearchResultsPuckComponent = {
     groupBySource: 'no',
     filterTabs: 'yes',
     sortControl: 'yes',
-    productCardStyle: 'standard',
+    // Designed shop cards by default, matching what the search box's dropdown
+    // shows for the same products. Degrades to standard rows on its own when
+    // shop is absent (no search.shop-cards provider) - see the RSC half.
+    productCardStyle: 'shopCard',
     showThumbnails: 'yes',
     thumbnailShape: 'landscape',
     showExcerpts: 'yes',
@@ -261,12 +264,13 @@ export const siteSearchResultsPuckComponent = {
     } else if (!probe.shopCardProvider) {
       delete next.productCardStyle
     }
+    const shopCards = productsOn && probe.shopCardProvider && (props.productCardStyle ?? 'shopCard') === 'shopCard'
     // The designed shop card is stamped server-side and cannot be appended by
     // the client load-more island - numbered pagination only in that mode.
-    if (productsOn && (props.productCardStyle ?? 'standard') === 'shopCard') {
-      delete next.paginationStyle
-    }
-    if ((props.layout ?? 'list') !== 'grid') delete next.columns
+    if (shopCards) delete next.paginationStyle
+    // Shop cards lay out in their own grid whatever the block's Layout says, so
+    // the column count stays editable outside grid layout in that mode.
+    if ((props.layout ?? 'list') !== 'grid' && !shopCards) delete next.columns
     if (props.showThumbnails === 'no') delete next.thumbnailShape
     if (props.showExcerpts === 'no') {
       delete next.snippetLength

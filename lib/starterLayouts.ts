@@ -21,7 +21,10 @@ export function searchResultsStarters() {
             size: 'large',
             widthMode: 'full',
           }),
-          block('SiteSearchResults', 'search-results-1'),
+          // productCardStyle spelled out so the sidebar shows the pick that is
+          // in force rather than an empty select; shop-absent installs fall
+          // back to standard rows on their own.
+          block('SiteSearchResults', 'search-results-1', { productCardStyle: 'shopCard' }),
         ],
         root: { props: {} },
         zones: {},
