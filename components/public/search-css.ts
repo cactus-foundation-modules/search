@@ -35,6 +35,13 @@ export function searchCss(): string {
 .srch-input{display:block;flex:1;min-width:0;border:none;outline:none;background:transparent;font:inherit;color:inherit;height:1.5em;line-height:1.5;margin:0;padding:0;appearance:none;-webkit-appearance:none;text-align:left}
 .srch-input::-webkit-search-decoration,.srch-input::-webkit-search-cancel-button{-webkit-appearance:none}
 .srch-input::placeholder{color:var(--color-text-muted)}
+/* iOS Safari zooms the whole page whenever a focused input is under 16px, which
+   on a phone reads as the search field suddenly being too wide with its left
+   edge off-screen - and the bar autofocuses, so it happens the instant it
+   opens. Small and Medium are 13px and 15px, so both tripped it. Floor the
+   live input at 16px on touch pointers only: mice and trackpads keep the
+   chosen size exactly, and no desktop layout moves. */
+@media (pointer:coarse){.srch-input{font-size:max(16px,var(--srch-font))}}
 .srch-iconsvg{width:var(--srch-icon);height:var(--srch-icon);flex:none;color:var(--color-text-muted)}
 .srch-btn{flex:none;border:none;cursor:pointer;font:inherit;padding:.375rem .875rem;border-radius:calc(var(--srch-radius) - 2px);background:var(--srch-accent);color:var(--color-on-primary)}
 .srch-btn:hover{filter:brightness(1.08)}
