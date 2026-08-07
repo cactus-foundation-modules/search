@@ -93,6 +93,42 @@ type CardPriceProvider = { fromPrices: (productIds: string[]) => Promise<Record<
 
 const CARD_PRICE_POINT = 'shop.product-card-prices'
 
+// Shop's `shop.product-listability` point, resolved the same way and for the
+// same reason: a shop can be set to hide sold-out products from its listings,
+// and a search box that turns up what every category page refuses to would make
+// a liar of the setting. Shop answers for whoever is asking, so signed-in staff
+// still find them while shoppers do not.
+type ListabilityProvider = { hiddenProductIds: (productIds: string[]) => Promise<string[]> }
+
+const LISTABILITY_POINT = 'shop.product-listability'
+
+async function resolveHiddenProductIds(productIds: string[]): Promise<Set<string>> {
+  const out = new Set<string>()
+  if (productIds.length === 0) return out
+  const providers = (moduleExtensionPointComponents[LISTABILITY_POINT] ?? {}) as Record<string, ListabilityProvider>
+  if (Object.keys(providers).length === 0) return out
+
+  const modules = await prisma.module.findMany({
+    where: { ...INSTALLED_MODULE_WHERE },
+    select: { manifest: true },
+  })
+  for (const mod of modules) {
+    const manifest = mod.manifest as { extensionPoints?: Array<{ point: string; id: string }> } | null
+    for (const entry of manifest?.extensionPoints ?? []) {
+      if (entry.point !== LISTABILITY_POINT) continue
+      const provider = providers[entry.id]
+      if (!provider) continue
+      try {
+        for (const id of await provider.hiddenProductIds(productIds)) out.add(id)
+      } catch {
+        // A provider that throws hides nothing rather than everything: results
+        // stay as they were on a shop without the setting switched on.
+      }
+    }
+  }
+  return out
+}
+
 async function resolveFromPrices(productIds: string[]): Promise<Map<string, CardFromPrice>> {
   const out = new Map<string, CardFromPrice>()
   if (productIds.length === 0) return out
@@ -130,7 +166,7 @@ async function enrichProductHits(hits: SearchHit[]): Promise<SearchHit[]> {
   const productIds = hits.filter((h) => h.source === 'shop-product').map((h) => h.entityId)
   if (productIds.length === 0) return hits
   try {
-    const [rows, symbol, fromPrices] = await Promise.all([
+    const [rows, symbol, fromPrices, hidden] = await Promise.all([
       prisma.$queryRaw<Array<{ id: string; price: string; sale_price: string | null }>>`
         SELECT "id", "price"::text AS price, "sale_price"::text AS sale_price
         FROM "shp_products"
@@ -138,6 +174,7 @@ async function enrichProductHits(hits: SearchHit[]): Promise<SearchHit[]> {
       `,
       shopCurrencySymbol(),
       resolveFromPrices(productIds),
+      resolveHiddenProductIds(productIds),
     ])
     const byId = new Map(rows.map((r) => [r.id, r]))
     const out: SearchHit[] = []
@@ -147,7 +184,7 @@ async function enrichProductHits(hits: SearchHit[]): Promise<SearchHit[]> {
         continue
       }
       const row = byId.get(hit.entityId)
-      if (!row) continue
+      if (!row || hidden.has(hit.entityId)) continue
       // A product priced by a companion module (variations) shows the cheapest
       // variation - a variant parent's own price is 0 and never shown anywhere.
       // Matches the storefront card exactly (modules/shop/lib/card-template.tsx).
