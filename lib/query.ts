@@ -4,6 +4,7 @@ import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { getSearchSettings } from './settings'
 import { listAvailableSources } from './indexer'
+import { splitPrefix, looseTerms } from './query-terms'
 import type { SearchHit, SearchSourceKey } from './types'
 import { isSearchSourceKey } from './types'
 
@@ -29,6 +30,11 @@ export type SearchQueryResult = {
   total: number
   // The sources actually searched after enablement/availability/shop-gate filtering.
   sources: SearchSourceKey[]
+  // True when nothing matched every word and these hits come from the relaxed
+  // any-word retry. Callers logging analytics must treat it as a nil result:
+  // the owner's "searches that found nothing" report is the point of the log,
+  // and near misses would otherwise quietly stop appearing in it.
+  relaxed: boolean
 }
 
 const HEADLINE_OPTIONS: Record<SnippetLength, string> = {
@@ -37,22 +43,19 @@ const HEADLINE_OPTIONS: Record<SnippetLength, string> = {
   long: 'MaxWords=48, MinWords=20, StartSel=«, StopSel=», ShortWord=2',
 }
 
-// Last token, stripped to safe characters, for prefix matching ("gre" matches
-// "green" while typing). to_tsquery throws on syntax errors, so only a purely
-// alphanumeric token is ever passed to it.
-function prefixToken(q: string): string | null {
-  const last = q.trim().split(/\s+/).pop() ?? ''
-  const clean = last.replace(/[^a-zA-Z0-9]/g, '')
-  return clean.length >= 2 ? clean : null
-}
-
 // The one tsquery expression, reused in WHERE, rank and headline. Parameters
 // are duplicated per use site - Prisma re-binds them each time.
+//
+// The prefix term is ANDed onto the rest, never ORed. ORing it made the last
+// word of every query stand alone: searching a full product name matched every
+// document containing "desk", 200-odd of them, and ts_rank_cd then floated the
+// bodies that repeat the word above the product actually named in the query.
 function tsQuery(language: string, q: string): Prisma.Sql {
-  const token = prefixToken(q)
-  return token
-    ? Prisma.sql`(websearch_to_tsquery(${language}::regconfig, ${q}) || to_tsquery(${language}::regconfig, ${token + ':*'}))`
-    : Prisma.sql`websearch_to_tsquery(${language}::regconfig, ${q})`
+  const { head, prefix } = splitPrefix(q)
+  if (!prefix) return Prisma.sql`websearch_to_tsquery(${language}::regconfig, ${q})`
+  // A one-word query has no head; websearch_to_tsquery('') only emits a notice.
+  if (!head) return Prisma.sql`to_tsquery(${language}::regconfig, ${prefix + ':*'})`
+  return Prisma.sql`(websearch_to_tsquery(${language}::regconfig, ${head}) && to_tsquery(${language}::regconfig, ${prefix + ':*'}))`
 }
 
 // When the shop is CLOSED its content vanishes from results at query time
@@ -184,15 +187,14 @@ export function parseSourcesParam(raw: string | null | undefined): SearchSourceK
 
 export async function searchDocuments(opts: SearchQueryOptions): Promise<SearchQueryResult> {
   const q = opts.q.trim()
-  if (!q) return { hits: [], total: 0, sources: [] }
+  if (!q) return { hits: [], total: 0, sources: [], relaxed: false }
 
   const sources = await resolveSearchableSources(opts.sources)
-  if (sources.length === 0) return { hits: [], total: 0, sources: [] }
+  if (sources.length === 0) return { hits: [], total: 0, sources: [], relaxed: false }
 
   const settings = await getSearchSettings()
   const lang = settings.language
   const weightsJson = JSON.stringify(settings.weights)
-  const tq = () => tsQuery(lang, q)
   const tierSql = opts.includeMembersTier
     ? Prisma.sql`d."tier" IN ('public', 'members')`
     : Prisma.sql`d."tier" = 'public'`
@@ -201,39 +203,71 @@ export async function searchDocuments(opts: SearchQueryOptions): Promise<SearchQ
   const offset = Math.max(0, opts.offset)
   const snippetLength = opts.snippetLength ?? 'medium'
 
-  const rankSql = Prisma.sql`
-    (ts_rank_cd(d."search_vector", ${tq()})
-      * COALESCE((${weightsJson}::jsonb->>d."source")::numeric, 1))::float8
+  // Someone typing a product's name wants that product, not the best-ranked
+  // document that happens to mention it. ts_rank_cd alone cannot deliver that:
+  // it rewards repetition, so a long body beats a short exact title. The tiers
+  // are far enough apart that a title match always outranks a body match.
+  const titleBoostSql = Prisma.sql`
+    CASE
+      WHEN lower(d."title") = lower(${q}) THEN 1000
+      WHEN left(lower(d."title"), length(${q})) = lower(${q}) THEN 100
+      WHEN position(lower(${q}) IN lower(d."title")) > 0 THEN 10
+      ELSE 0
+    END
   `
-  const headlineSql = opts.highlight
-    ? Prisma.sql`ts_headline(${lang}::regconfig, left(d."body", 30000), ${tq()}, ${HEADLINE_OPTIONS[snippetLength]})`
-    : Prisma.sql`NULL::text`
   const orderSql = opts.sort === 'newest'
     ? Prisma.sql`d."source_updated_at" DESC NULLS LAST, rank DESC`
     : Prisma.sql`rank DESC, d."source_updated_at" DESC NULLS LAST`
 
-  let rows: Array<Record<string, unknown>>
-  let countRows: Array<{ total: bigint }>
-  try {
-    ;[rows, countRows] = await Promise.all([
+  // makeTq is a factory, not a value: each use site needs its own parameter
+  // bindings.
+  const run = async (makeTq: () => Prisma.Sql) => {
+    const rankSql = Prisma.sql`
+      (ts_rank_cd(d."search_vector", ${makeTq()})
+        * COALESCE((${weightsJson}::jsonb->>d."source")::numeric, 1)
+        + ${titleBoostSql})::float8
+    `
+    const headlineSql = opts.highlight
+      ? Prisma.sql`ts_headline(${lang}::regconfig, left(d."body", 30000), ${makeTq()}, ${HEADLINE_OPTIONS[snippetLength]})`
+      : Prisma.sql`NULL::text`
+    return Promise.all([
       prisma.$queryRaw<Array<Record<string, unknown>>>`
         SELECT d."source", d."entity_id", d."title", d."url", d."image_url", d."excerpt",
                d."extra", d."source_updated_at",
                ${rankSql} AS rank,
                ${headlineSql} AS snippet
         FROM "srch_documents" d
-        WHERE ${sourcesSql} AND ${tierSql} AND d."search_vector" @@ ${tq()}
+        WHERE ${sourcesSql} AND ${tierSql} AND d."search_vector" @@ ${makeTq()}
         ORDER BY ${orderSql}
         LIMIT ${limit} OFFSET ${offset}
       `,
       prisma.$queryRaw<Array<{ total: bigint }>>`
         SELECT COUNT(*) AS total FROM "srch_documents" d
-        WHERE ${sourcesSql} AND ${tierSql} AND d."search_vector" @@ ${tq()}
+        WHERE ${sourcesSql} AND ${tierSql} AND d."search_vector" @@ ${makeTq()}
       `,
     ])
+  }
+
+  let rows: Array<Record<string, unknown>>
+  let countRows: Array<{ total: bigint }>
+  let relaxed = false
+  try {
+    ;[rows, countRows] = await run(() => tsQuery(lang, q))
+    // Every term required found nothing - retry on any term before giving up.
+    if (Number(countRows[0]?.total ?? 0) === 0) {
+      const loose = looseTerms(q)
+      if (loose) {
+        const [looseRows, looseCount] = await run(
+          () => Prisma.sql`to_tsquery(${lang}::regconfig, ${loose})`,
+        )
+        if (Number(looseCount[0]?.total ?? 0) > 0) {
+          ;[rows, countRows, relaxed] = [looseRows, looseCount, true]
+        }
+      }
+    }
   } catch {
     // A malformed tsquery must never 500 a public page - no results instead.
-    return { hits: [], total: 0, sources }
+    return { hits: [], total: 0, sources, relaxed: false }
   }
 
   const hits: SearchHit[] = rows.map((r) => ({
@@ -254,5 +288,6 @@ export async function searchDocuments(opts: SearchQueryOptions): Promise<SearchQ
     hits: await enrichProductHits(hits),
     total: Number(countRows[0]?.total ?? 0),
     sources,
+    relaxed,
   }
 }

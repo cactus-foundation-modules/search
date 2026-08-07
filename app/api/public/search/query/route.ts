@@ -48,9 +48,14 @@ export async function GET(request: NextRequest) {
     snippetLength: params.snippet,
   })
 
+  // Relaxed hits are near misses, not matches: nothing matched the words as
+  // typed. The owner's most useful report is "searches that found nothing", so
+  // it counts as nothing here even though the visitor is shown the near misses.
+  const strictTotal = result.relaxed ? 0 : result.total
+
   // An empty first page might mean "nothing matches" or "nothing indexed yet" -
   // let the alert sync decide (it only bells on a genuinely empty index).
-  if (params.offset === 0 && result.total === 0) {
+  if (params.offset === 0 && strictTotal === 0) {
     const { syncIndexAlert } = await import('@/modules/search/lib/alerts')
     await syncIndexAlert()
   }
@@ -61,7 +66,7 @@ export async function GET(request: NextRequest) {
     try {
       const settings = await getSearchSettings()
       if (settings.queryLogging) {
-        await logQuery(params.q, result.total, sources.length ? sources.join(',') : null)
+        await logQuery(params.q, strictTotal, sources.length ? sources.join(',') : null)
       }
     } catch {
       // Logging must never break search.
