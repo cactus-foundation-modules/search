@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { extractPuckText, makeExcerpt } from '../extract'
+import { resolveShopProductText, resolveShopProductTextChanges } from '../shop-product-text'
 import type { SearchDocument } from '../types'
 import type { SearchAdapter } from './types'
 
@@ -27,14 +28,23 @@ export const shopProductAdapter: SearchAdapter = {
   },
 
   async listChangedSince(since) {
-    const rows = since
-      ? await prisma.$queryRaw<Array<{ id: string }>>`
-          SELECT "id" FROM "shp_products" WHERE "updated_at" > ${since}
-        `
-      : await prisma.$queryRaw<Array<{ id: string }>>`
-          SELECT "id" FROM "shp_products" WHERE "status" = 'ACTIVE' AND "catalogue_hidden" = false
-        `
-    return rows.map((r) => r.id)
+    if (!since) {
+      const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "shp_products" WHERE "status" = 'ACTIVE' AND "catalogue_hidden" = false
+      `
+      return rows.map((r) => r.id)
+    }
+    // A product's own row is not the whole document any more: a companion
+    // module's contributed text (variation codes) moves without shop's
+    // `updated_at` moving, so those parents are folded in here or an
+    // incremental run would never revisit them.
+    const [rows, contributed] = await Promise.all([
+      prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "shp_products" WHERE "updated_at" > ${since}
+      `,
+      resolveShopProductTextChanges(since),
+    ])
+    return [...new Set([...rows.map((r) => r.id), ...contributed])]
   },
 
   async fetchDocuments(ids, opts) {
@@ -55,13 +65,20 @@ export const shopProductAdapter: SearchAdapter = {
       FROM "shp_products" p
       WHERE p."id" = ANY(${ids}) AND p."status" = 'ACTIVE' AND p."catalogue_hidden" = false
     `
+    // Words another module holds for these products - shop-variations answers
+    // with every variation's SKU, so a variation code finds the parent listing.
+    const contributed = await resolveShopProductText(rows.map((r) => r.id as string))
     return rows.map((r): SearchDocument => {
       const description = (r.description_puck ? extractPuckText(r.description_puck) : null)
         || ((r.description as string | null) ?? '')
+      // Codes go in ahead of the description: a designed description can run to
+      // tens of thousands of characters and the body is truncated at 100k before
+      // it is turned into a tsvector, so anything short and precise sits early.
       const body = [
         (r.short_description as string | null) ?? '',
-        description,
         (r.sku as string | null) ?? '',
+        contributed.get(r.id as string) ?? '',
+        description,
         (r.alt_text as string | null) ?? '',
         (r.tag_names as string | null) ?? '',
         (r.category_names as string | null) ?? '',
