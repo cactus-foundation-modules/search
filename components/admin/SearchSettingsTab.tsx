@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { TabStrip } from '@/components/admin/TabStrip'
+import SearchDashboard from '@/modules/search/components/admin/SearchDashboard'
 import { ALLOWED_LANGUAGES, type SearchSettings, type SearchSourceKey } from '@/modules/search/lib/types'
 
 type StatusSource = { key: SearchSourceKey; label: string; available: boolean; enabled: boolean; documentCount: number }
@@ -12,7 +14,7 @@ const inputStyle: React.CSSProperties = {
 }
 const rowStyle: React.CSSProperties = { marginBottom: '1rem', maxWidth: 480 }
 
-export function SearchSettingsTab() {
+function SettingsForm() {
   const [settings, setSettings] = useState<SearchSettings | null>(null)
   const [sources, setSources] = useState<StatusSource[]>([])
   const [forbidden, setForbidden] = useState(false)
@@ -236,6 +238,26 @@ export function SearchSettingsTab() {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// Search used to own a sidebar link for the index dashboard as well as this
+// settings tab. Both are the same job - looking after the search index - so the
+// dashboard moved in here as a sub-tab and the sidebar link went away.
+export function SearchSettingsTab() {
+  const [tab, setTab] = useState<'settings' | 'index'>('settings')
+
+  return (
+    <div>
+      <TabStrip
+        style={{ marginBottom: '1.5rem' }}
+        items={[
+          { key: 'settings', label: 'Settings', active: tab === 'settings', onClick: () => setTab('settings') },
+          { key: 'index', label: 'Index & searches', active: tab === 'index', onClick: () => setTab('index') },
+        ]}
+      />
+      {tab === 'settings' ? <SettingsForm /> : <SearchDashboard />}
     </div>
   )
 }

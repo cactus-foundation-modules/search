@@ -1,6 +1,6 @@
 {
   "name": "search",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "tablePrefix": "srch_",
   "requiresCoreVersion": "0.5.833",
   "description": "Site-wide search across pages, shop, articles, directory, forum and members, with a configurable search box and results page.",
@@ -10,14 +10,6 @@
     "search.manage"
   ],
   "navGroupLabel": "Search",
-  "navEntries": [
-    {
-      "label": "Search",
-      "path": "/m/search/index",
-      "icon": "<circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m21 21-4.3-4.3\"/>",
-      "permission": "search.view"
-    }
-  ],
   "settingsTabs": [
     {
       "id": "search",
