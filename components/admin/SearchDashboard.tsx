@@ -25,7 +25,7 @@ const cardStyle: React.CSSProperties = {
 }
 const thStyle: React.CSSProperties = {
   textAlign: 'left', fontSize: '.6875rem', fontWeight: 600, textTransform: 'uppercase',
-  letterSpacing: '.05em', color: 'var(--color-text-muted)', padding: '.375rem .5rem',
+  letterSpacing: '.05em', color: 'var(--color-text-secondary)', padding: '.375rem .5rem',
   borderBottom: '1px solid var(--color-border)',
 }
 const tdStyle: React.CSSProperties = { fontSize: '.8125rem', padding: '.375rem .5rem', borderBottom: '1px solid var(--color-border)' }
@@ -123,7 +123,7 @@ export default function SearchDashboard() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{status.totalDocuments.toLocaleString()} items in the index</div>
-            <div style={{ fontSize: '.8125rem', color: 'var(--color-text-muted)' }}>
+            <div style={{ fontSize: '.8125rem', color: 'var(--color-text-secondary)' }}>
               Last automatic run: {formatWhen(status.lastRunAt)} · refreshed nightly, or rebuild any time
             </div>
           </div>
@@ -159,7 +159,7 @@ export default function SearchDashboard() {
               <tr key={s.key}>
                 <td style={tdStyle}>
                   {s.label}
-                  {!s.enabled && <span style={{ marginLeft: '.5rem', fontSize: '.6875rem', color: 'var(--color-text-muted)' }}>(switched off in Settings)</span>}
+                  {!s.enabled && <span style={{ marginLeft: '.5rem', fontSize: '.6875rem', color: 'var(--color-text-secondary)' }}>(switched off in Settings)</span>}
                 </td>
                 <td style={tdStyle}>{s.documentCount.toLocaleString()}</td>
                 <td style={tdStyle}>{formatWhen(s.lastIndexedAt)}</td>
@@ -184,7 +184,7 @@ export default function SearchDashboard() {
           <div style={cardStyle}>
             <h3 style={{ margin: '0 0 .5rem', fontSize: '.9375rem' }}>Top searches (30 days)</h3>
             {analytics.top.length === 0 ? (
-              <p style={{ fontSize: '.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>Nothing logged yet.</p>
+              <p style={{ fontSize: '.8125rem', color: 'var(--color-text-secondary)', margin: 0 }}>Nothing logged yet.</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -204,11 +204,11 @@ export default function SearchDashboard() {
           </div>
           <div style={cardStyle}>
             <h3 style={{ margin: '0 0 .5rem', fontSize: '.9375rem' }}>Searches with no results (30 days)</h3>
-            <p style={{ fontSize: '.75rem', color: 'var(--color-text-muted)', margin: '0 0 .5rem' }}>
+            <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
               What visitors wanted and could not find - the most useful list on this page.
             </p>
             {analytics.zeroResults.length === 0 ? (
-              <p style={{ fontSize: '.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>None - everything found something.</p>
+              <p style={{ fontSize: '.8125rem', color: 'var(--color-text-secondary)', margin: 0 }}>None - everything found something.</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>

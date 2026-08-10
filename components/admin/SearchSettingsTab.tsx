@@ -118,7 +118,7 @@ export function SearchSettingsTab() {
     <div>
       <div style={rowStyle}>
         <label style={labelStyle}>Content types included in search</label>
-        <p style={{ fontSize: '.75rem', color: 'var(--color-text-muted)', margin: '0 0 .5rem' }}>
+        <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
           Site-wide master switches. A block on a page can narrow these further, but never re-enable one switched off here.
         </p>
         {sources.map((s) => (
@@ -129,7 +129,7 @@ export function SearchSettingsTab() {
               onChange={(e) => setSettings({ ...settings, sources: { ...settings.sources, [s.key]: e.target.checked } })}
             />
             {s.label}
-            <span style={{ color: 'var(--color-text-muted)', fontSize: '.75rem' }}>({s.documentCount} indexed)</span>
+            <span style={{ color: 'var(--color-text-secondary)', fontSize: '.75rem' }}>({s.documentCount} indexed)</span>
           </label>
         ))}
       </div>
@@ -145,14 +145,14 @@ export function SearchSettingsTab() {
             <option key={lang} value={lang}>{lang === 'simple' ? 'simple (no stemming)' : lang}</option>
           ))}
         </select>
-        <p style={{ fontSize: '.75rem', color: 'var(--color-text-muted)', margin: '.25rem 0 0' }}>
+        <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '.25rem 0 0' }}>
           How words are stemmed for matching. Changing this needs a full rebuild from the Search dashboard before it takes effect.
         </p>
       </div>
 
       <div style={rowStyle}>
         <label style={labelStyle}>Ranking weight per content type</label>
-        <p style={{ fontSize: '.75rem', color: 'var(--color-text-muted)', margin: '0 0 .5rem' }}>
+        <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
           1 is normal. Higher lifts a content type up the results; lower pushes it down.
         </p>
         {sources.map((s) => (
@@ -221,7 +221,7 @@ export function SearchSettingsTab() {
 
       <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)', maxWidth: 480 }}>
         <label style={labelStyle}>Search index</label>
-        <p style={{ fontSize: '.75rem', color: 'var(--color-text-muted)', margin: '0 0 .5rem' }}>
+        <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
           Refreshes itself overnight. Rebuild after changing the language or the switches above, or any time results look stale.
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem' }}>
