@@ -1,6 +1,6 @@
 {
   "name": "search",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "tablePrefix": "srch_",
   "requiresCoreVersion": "0.5.833",
   "description": "Site-wide search across pages, shop, articles, directory, forum and members, with a configurable search box and results page.",
@@ -72,6 +72,12 @@
       "id": "search",
       "import": "./lib/media-reference-rewriter",
       "component": "searchMediaReferenceRewriter"
+    },
+    {
+      "point": "core.media-usage-providers",
+      "id": "search",
+      "import": "./lib/media-usage-provider",
+      "component": "searchMediaUsageProvider"
     }
   ]
 }
