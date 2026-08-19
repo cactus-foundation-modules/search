@@ -12,6 +12,24 @@ import type { SearchAdapter } from './types'
 // Prices and stock are deliberately NOT indexed - the query path live-joins
 // them so a sale never shows a stale figure.
 
+// Whether the shop serves its products off the site root rather than under
+// /shop/products/. Read straight from shop's settings row for the same reason
+// everything else here is raw SQL: importing shop's lib would break a build
+// without shop installed. A shop on the root style has NO /shop/products/<slug>
+// address at all, so an index built with the wrong answer sends every search
+// result to a 404 - which is also why changing the setting wants a reindex, the
+// url being baked into each document as it is written.
+async function shopProductsAtRoot(): Promise<boolean> {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ style: string | null }>>`
+      SELECT "config" ->> 'productUrlStyle' AS style FROM "shp_settings" WHERE "id" = 'singleton' LIMIT 1
+    `
+    return rows[0]?.style === 'ROOT'
+  } catch {
+    return false
+  }
+}
+
 export const shopProductAdapter: SearchAdapter = {
   source: 'shop-product',
   label: 'Products',
@@ -68,6 +86,7 @@ export const shopProductAdapter: SearchAdapter = {
     // Words another module holds for these products - shop-variations answers
     // with every variation's SKU, so a variation code finds the parent listing.
     const contributed = await resolveShopProductText(rows.map((r) => r.id as string))
+    const productsAtRoot = await shopProductsAtRoot()
     return rows.map((r): SearchDocument => {
       const description = (r.description_puck ? extractPuckText(r.description_puck) : null)
         || ((r.description as string | null) ?? '')
@@ -89,7 +108,7 @@ export const shopProductAdapter: SearchAdapter = {
         title: r.name as string,
         excerpt: makeExcerpt((r.short_description as string | null) || description, opts.excerptLength),
         body,
-        url: `/shop/products/${r.slug as string}`,
+        url: productsAtRoot ? `/${r.slug as string}` : `/shop/products/${r.slug as string}`,
         imageUrl: (r.image_url as string | null) ?? null,
         extra: r.category_names ? { categories: r.category_names as string } : null,
         tier: 'public',
