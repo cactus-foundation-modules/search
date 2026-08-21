@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="module-art.webp" alt="Cactus Search Module" width="640" />
+</p>
+
 # Cactus Search Module
 
 Site-wide search for [Cactus](https://github.com/usersaynoso/cactus-foundation).
