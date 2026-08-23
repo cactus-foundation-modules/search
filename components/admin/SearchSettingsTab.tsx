@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { useTabParam } from '@/modules/search/lib/admin-tab-url'
 import SearchDashboard from '@/modules/search/components/admin/SearchDashboard'
 import { ALLOWED_LANGUAGES, type SearchSettings, type SearchSourceKey } from '@/modules/search/lib/types'
 
@@ -246,7 +247,7 @@ function SettingsForm() {
 // settings tab. Both are the same job - looking after the search index - so the
 // dashboard moved in here as a sub-tab and the sidebar link went away.
 export function SearchSettingsTab() {
-  const [tab, setTab] = useState<'settings' | 'index'>('settings')
+  const [tab, setTab] = useTabParam('sub', 'settings', ['settings', 'index'] as const)
 
   return (
     <div>
