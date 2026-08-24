@@ -42,6 +42,11 @@ export function searchCss(): string {
 .srch-input-wrap:focus-within{border-color:var(--srch-accent);outline:2px solid color-mix(in srgb,var(--srch-accent) 30%,transparent);outline-offset:1px}
 .srch-input{display:block;flex:1;min-width:0;border:none;outline:none;background:transparent;font:inherit;color:inherit;height:1.5em;line-height:1.5;margin:0;padding:0;appearance:none;-webkit-appearance:none;text-align:left}
 .srch-input::-webkit-search-decoration,.srch-input::-webkit-search-cancel-button{-webkit-appearance:none}
+/* The closed trigger's placeholder is a span, not an input, so it wraps - and
+   with the field at header size a placeholder ending in an ellipsis put the
+   dots on a second line, hanging out below the box (the span is one line tall).
+   Clip instead: whatever doesn't fit is simply not shown. */
+.srch-input-static{white-space:nowrap;overflow:hidden}
 .srch-input::placeholder{color:var(--srch-fg,var(--color-text-muted))}
 /* iOS Safari zooms the whole page whenever a focused input is under 16px, which
    on a phone reads as the search field suddenly being too wide with its left
@@ -51,6 +56,11 @@ export function searchCss(): string {
    chosen size exactly, and no desktop layout moves. */
 @media (pointer:coarse){.srch-input{font-size:max(16px,var(--srch-font))}}
 .srch-iconsvg{width:var(--srch-icon);height:var(--srch-icon);flex:none;color:var(--srch-fg,var(--color-text-muted))}
+/* The close/clear button on the right of the live field. Deliberately borrows
+   .srch-iconsvg for the glyph so it takes exactly the magnifier's colour -
+   --srch-fg when the box has been coloured, muted text when it hasn't. */
+.srch-clear{display:inline-flex;align-items:center;justify-content:center;flex:none;margin:0;padding:0;border:none;background:transparent;color:inherit;font:inherit;line-height:0;cursor:pointer}
+.srch-clear:hover .srch-iconsvg{color:var(--srch-accent)}
 .srch-btn{flex:none;border:none;cursor:pointer;font:inherit;padding:.375rem .875rem;border-radius:calc(var(--srch-radius) - 2px);background:var(--srch-accent);color:var(--color-on-primary)}
 .srch-btn:hover{filter:brightness(1.08)}
 .srch-iconbtn{display:inline-flex;align-items:center;justify-content:center;gap:.375rem;border:1px solid var(--srch-border,var(--color-border));background:var(--srch-bg,var(--color-surface));color:var(--srch-fg,var(--color-text));cursor:pointer;font:inherit;padding:var(--srch-pad);border-radius:var(--srch-radius)}

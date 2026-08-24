@@ -9,6 +9,8 @@ import { ResultRow, ProductCardLite, groupHits, type HitDisplayOptions } from '.
 // props (client props land verbatim in view-source); rendered by
 // SiteSearchBlock.rsc, which also emits the stylesheet.
 
+export type OpenWidth = 'field' | 'wide' | 'viewport'
+
 export type SearchBoxPublicConfig = {
   mode: 'page' | 'inline' | 'overlay'
   minChars: number
@@ -45,6 +47,15 @@ export type SearchBoxPublicConfig = {
   widthPx: number
   align: 'left' | 'centre' | 'right'
   dropdownWidth: 'field' | 'container' | 'viewport'
+  // Overlay mode with a field trigger only: how wide the live field grows when
+  // it opens, per breakpoint. 'wide' and 'viewport' both keep the field's
+  // right-hand edge where the trigger's was and grow leftwards, so an opened
+  // header search covers whatever sits beside it instead of shoving the row
+  // about. `breakpoints` is the site's own tablet/mobile widths, resolved
+  // server-side, so the island can tell which breakpoint it is on.
+  openWidth: { desktop: OpenWidth; tablet: OpenWidth; mobile: OpenWidth }
+  openWidthPx: number
+  breakpoints: { mobile: number; tablet: number }
   productDisplay: 'rows' | 'cards' | 'shopCards'
   dropdownColumns: number
   display: HitDisplayOptions
@@ -58,6 +69,14 @@ function SearchIcon() {
     <svg className="srch-iconsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
       <circle cx="11" cy="11" r="7" />
       <path d="m21 21-4.3-4.3" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg className="srch-iconsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M18 6 6 18M6 6l12 12" />
     </svg>
   )
 }
@@ -279,6 +298,22 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     return () => document.removeEventListener('keydown', onKey)
   }, [config.hotkey, usesOverlay, openOverlay])
 
+  // The X on the right of the live field: puts the box back to how it was
+  // before anyone touched it - overlay and bar shut, dropdown shut, field
+  // empty, nothing in flight, focus released.
+  const closeSearch = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    seqRef.current++
+    setQ('')
+    setHits([])
+    setTotal(0)
+    setSearched(false)
+    setActiveIndex(-1)
+    setOpen(false)
+    setOverlayOpen(false)
+    inputRef.current?.blur()
+  }, [])
+
   const goToResults = useCallback(() => {
     const term = q.trim()
     if (!term) return
@@ -449,6 +484,19 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
       {config.presentation === 'fieldWithButton' && (
         <button type="button" className="srch-btn" onClick={goToResults}>{config.buttonLabel}</button>
       )}
+      {/* Rightmost, past the button when there is one. In an overlay or bar
+          there is always something to close, so it is always there; in a field
+          that lives on the page it only appears once there is text to clear. */}
+      {(usesOverlay || q !== '') && (
+        <button
+          type="button"
+          className="srch-clear"
+          aria-label={usesOverlay ? 'Close search' : 'Clear search'}
+          onClick={closeSearch}
+        >
+          <CloseIcon />
+        </button>
+      )}
     </div>
   )
 
@@ -486,18 +534,37 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
         // (clamped inside the viewport); viewport = edge to edge.
         (() => {
           const gutter = 8
+          // Which breakpoint the viewport is on, by the site's own widths -
+          // same ranges as responsiveMediaCssFor, so the field agrees with
+          // every other per-breakpoint setting on the block.
+          const device = anchorRect.cw <= config.breakpoints.mobile
+            ? 'mobile'
+            : anchorRect.cw <= config.breakpoints.tablet ? 'tablet' : 'desktop'
+          const grow = config.openWidth[device]
+          // Right edge pinned to the trigger's right edge; the field grows
+          // leftwards from there, never past the gutter, and never narrower
+          // than the trigger it replaced.
+          const right = anchorRect.left + anchorRect.width
+          const fieldWidth = grow === 'viewport'
+            ? Math.max(anchorRect.width, anchorRect.cw - gutter * 2)
+            : grow === 'wide'
+              ? Math.min(Math.max(config.openWidthPx, anchorRect.width), Math.max(anchorRect.width, right - gutter))
+              : anchorRect.width
+          const fieldLeft = grow === 'viewport'
+            ? Math.max(gutter, Math.round((anchorRect.cw - fieldWidth) / 2))
+            : right - fieldWidth
           const ddWidth = config.dropdownWidth === 'viewport'
             ? anchorRect.cw
             : config.dropdownWidth === 'container'
               ? Math.min(680, anchorRect.cw - gutter * 2)
-              : anchorRect.width
+              : fieldWidth
           const ddViewportLeft = config.dropdownWidth === 'viewport'
             ? 0
-            : Math.max(gutter, Math.min(anchorRect.left + (anchorRect.width - ddWidth) / 2, anchorRect.cw - gutter - ddWidth))
+            : Math.max(gutter, Math.min(fieldLeft + (fieldWidth - ddWidth) / 2, anchorRect.cw - gutter - ddWidth))
           return (
             <div
               className={`srch-overlay-anchor ${appearanceClasses}`}
-              style={{ top: anchorRect.top, left: anchorRect.left, width: anchorRect.width }}
+              style={{ top: anchorRect.top, left: fieldLeft, width: fieldWidth }}
             >
               {inputEl}
               {searched && (
@@ -507,7 +574,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
                   id={listboxId}
                   style={{
                     position: 'relative',
-                    left: ddViewportLeft - anchorRect.left,
+                    left: ddViewportLeft - fieldLeft,
                     width: ddWidth,
                     maxHeight: `calc(100vh - ${anchorRect.top + anchorRect.height}px - 24px)`,
                     ...(config.dropdownWidth === 'viewport' ? { borderRadius: 0, borderLeft: 'none', borderRight: 'none' } : {}),
@@ -565,7 +632,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
           onClick={openOverlay}
         >
           {config.showIcon && <SearchIcon />}
-          <span className="srch-input" style={{ color: 'var(--srch-fg, var(--color-text-muted))' }}>{q.trim() || config.placeholder}</span>
+          <span className="srch-input srch-input-static" style={{ color: 'var(--srch-fg, var(--color-text-muted))' }}>{q.trim() || config.placeholder}</span>
         </button>
         {overlay}
       </div>

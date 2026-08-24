@@ -2,7 +2,7 @@ import { connection } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { searchCss } from '../public/search-css'
 import SearchBoxClient, { type SearchBoxPublicConfig } from '../public/SearchBoxClient'
-import { searchBoxColourVars, searchSizeStyles, siteSearchPuckComponent, sourcesFromProps, type SiteSearchBlockProps } from './SiteSearchBlock'
+import { searchBoxColourVars, searchOpenWidth, searchSizeStyles, siteSearchPuckComponent, sourcesFromProps, type SiteSearchBlockProps } from './SiteSearchBlock'
 
 // Server (RSC) half of the Search Box. Only the display subset of the props
 // crosses to the client island - and every prop here IS display config, so the
@@ -49,6 +49,9 @@ function toConfig(props: SiteSearchBlockProps): SearchBoxPublicConfig {
     widthPx: Math.max(120, Math.min(1200, props.widthPx ?? 320)),
     align: pick(props.align, ['left', 'centre', 'right'] as const, 'left'),
     dropdownWidth: pick(props.dropdownWidth, ['field', 'container', 'viewport'] as const, 'field'),
+    // Per-breakpoint width the live field takes when the overlay opens, plus
+    // the site's breakpoint widths for the island to compare against.
+    ...searchOpenWidth(props),
     productDisplay: pick(props.productDisplay, ['rows', 'cards', 'shopCards'] as const, 'rows'),
     dropdownColumns: parseInt(props.dropdownColumns ?? '3', 10) || 3,
     display: {

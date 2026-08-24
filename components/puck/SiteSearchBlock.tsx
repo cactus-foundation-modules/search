@@ -3,7 +3,7 @@ import { searchCss, SRCH_SIZE_VARS } from '../public/search-css'
 // module pulls in the Puck editor (and the TipTap it vendors), and this file is
 // on the public render path. Same rule core's config.tsx follows.
 import { ResponsiveSelectField, SiteColourField } from '@/lib/puck/fields/registry'
-import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type Device, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { getResponsiveBreakpoints, normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type Device, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import type { SearchSourceKey } from '@/modules/search/lib/types'
 
 // Editor half only. The live render (with the client search island) is in
@@ -75,6 +75,10 @@ export type SiteSearchBlockProps = {
   align?: string
   // Dropdown results
   dropdownWidth?: string
+  // Per-breakpoint, overlay-with-a-field only: how wide the field goes when it
+  // opens, and the width 'wide' means.
+  openWidth?: ResponsiveValue<string> | string
+  openWidthPx?: number
   productDisplay?: string
   dropdownColumns?: string
   showThumbnails?: string
@@ -137,6 +141,28 @@ export function searchSizeStyles(size: SiteSearchBlockProps['size'], id: string 
   }
 }
 
+// Width-when-open, resolved for all three breakpoints plus the site's own
+// breakpoint widths. The island can't call getResponsiveBreakpoints itself -
+// the client bundle gets its own copy of that module state, unset - so the
+// numbers travel in the config. Shared with the RSC half for the usual reason:
+// one place to change the cascade, not two.
+export function searchOpenWidth(props: Pick<SiteSearchBlockProps, 'openWidth' | 'openWidthPx'>): {
+  openWidth: Record<Device, 'field' | 'wide' | 'viewport'>
+  openWidthPx: number
+  breakpoints: { mobile: number; tablet: number }
+} {
+  const rv = normalizeResponsiveValue<string>(props.openWidth)
+  const at = (d: Device): 'field' | 'wide' | 'viewport' => {
+    const v = pickResponsive(rv, d)
+    return v === 'wide' || v === 'viewport' ? v : 'field'
+  }
+  return {
+    openWidth: { desktop: at('desktop'), tablet: at('tablet'), mobile: at('mobile') },
+    openWidthPx: Math.max(160, Math.min(1200, props.openWidthPx ?? 420)),
+    breakpoints: getResponsiveBreakpoints(),
+  }
+}
+
 // The three colour overrides as inline custom properties, or undefined when
 // none is set - so a box that has never been coloured emits no style attribute
 // at all and renders byte-identically. Shared by the editor half, the RSC half
@@ -189,7 +215,7 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
           {props.showIcon !== 'no' && (
             <svg className="srch-iconsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           )}
-          <span className="srch-input" style={{ color: 'var(--srch-fg, var(--color-text-muted))' }}>{props.placeholder || 'Search…'}</span>
+          <span className="srch-input srch-input-static" style={{ color: 'var(--srch-fg, var(--color-text-muted))' }}>{props.placeholder || 'Search…'}</span>
           {props.presentation === 'fieldWithButton' && (
             <span className="srch-btn">{props.buttonLabel || 'Search'}</span>
           )}
@@ -345,6 +371,16 @@ export const siteSearchPuckComponent = {
         { value: 'viewport', label: 'Full viewport width' },
       ],
     },
+    openWidth: {
+      type: 'custom' as const, label: 'Width when open',
+      options: [
+        { value: 'field', label: 'Same as the field' },
+        { value: 'wide', label: 'Wider (grows leftwards)' },
+        { value: 'viewport', label: 'Full screen width' },
+      ],
+      render: ResponsiveSelectField,
+    },
+    openWidthPx: { type: 'number' as const, label: 'Open width (px)', min: 160, max: 1200 },
     productDisplay: {
       type: 'select' as const, label: 'Products shown as',
       // 'shopCards' (the designed Product Card template, stamped by the shop
@@ -414,6 +450,8 @@ export const siteSearchPuckComponent = {
     widthPx: 320,
     align: 'left',
     dropdownWidth: 'field',
+    openWidth: { desktop: 'field' },
+    openWidthPx: 420,
     productDisplay: 'rows',
     dropdownColumns: '3',
     showThumbnails: 'yes',
@@ -487,6 +525,19 @@ export const siteSearchPuckComponent = {
     } else if ((props.widthMode ?? 'full') !== 'fixed') {
       delete next.widthPx
       delete next.align
+    }
+
+    // Width-when-open is only a question for the anchored overlay - the one
+    // arrangement where an in-flow field is replaced by a live one sitting over
+    // the top of it. The icon button opens a centred panel or a full-width bar,
+    // and an inline or page field never opens at all.
+    if (mode !== 'overlay' || presentation === 'iconButton') {
+      delete next.openWidth
+      delete next.openWidthPx
+    } else {
+      const rv = normalizeResponsiveValue<string>(props.openWidth)
+      const anyWide = (['desktop', 'tablet', 'mobile'] as const).some((d) => pickResponsive(rv, d) === 'wide')
+      if (!anyWide) delete next.openWidthPx
     }
 
     return next
