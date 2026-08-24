@@ -33,6 +33,9 @@ export type SearchBoxPublicConfig = {
   // for any breakpoint that differs (empty when the box has one size at every
   // width), and the block id those rules are scoped to.
   sizeClass: string
+  // Optional --srch-bg/--srch-border/--srch-fg overrides; undefined when the
+  // box has no colour set, so nothing is emitted for the common case.
+  boxVars?: React.CSSProperties
   sizeCss: string
   blockId: string
   cornerStyle: 'square' | 'rounded' | 'pill'
@@ -342,6 +345,10 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   const boxStyle: React.CSSProperties = config.widthMode === 'fixed'
     ? { width: config.widthPx, maxWidth: '100%' }
     : { width: '100%' }
+  // Merged onto every root this component can render - the two field boxes, the
+  // icon trigger and the fixed bar - because each is a separate element and the
+  // custom properties have to land on whichever one is actually on the page.
+  const boxStyleWithVars: React.CSSProperties = { ...boxStyle, ...config.boxVars }
 
   const optionId = useCallback((i: number) => `${listboxId}-opt-${i}`, [listboxId])
 
@@ -453,7 +460,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   const bar = overlayOpen && (
     <>
       <div className="srch-bar-catcher" onClick={() => setOverlayOpen(false)} />
-      <div className={`srch-bar ${appearanceClasses}`} style={{ top: barTop }}>
+      <div className={`srch-bar ${appearanceClasses}`} style={{ top: barTop, ...config.boxVars }}>
         {inputEl}
         {searched && (
           <div
@@ -525,7 +532,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
 
   if (config.presentation === 'iconButton') {
     return (
-      <div className={`${boxClasses} srch-box-icon`} data-srch-id={config.blockId || undefined} ref={boxRef}>
+      <div className={`${boxClasses} srch-box-icon`} data-srch-id={config.blockId || undefined} style={config.boxVars} ref={boxRef}>
         {sizeStyle}
         <button
           type="button"
@@ -548,7 +555,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   if (config.mode === 'overlay') {
     // In-flow trigger only; the live input lives in the overlay panel.
     return (
-      <div className={boxClasses} data-srch-id={config.blockId || undefined} style={boxStyle} ref={boxRef}>
+      <div className={boxClasses} data-srch-id={config.blockId || undefined} style={boxStyleWithVars} ref={boxRef}>
         {sizeStyle}
         <button
           type="button"
@@ -558,7 +565,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
           onClick={openOverlay}
         >
           {config.showIcon && <SearchIcon />}
-          <span className="srch-input" style={{ color: 'var(--color-text-muted)' }}>{q.trim() || config.placeholder}</span>
+          <span className="srch-input" style={{ color: 'var(--srch-fg, var(--color-text-muted))' }}>{q.trim() || config.placeholder}</span>
         </button>
         {overlay}
       </div>
@@ -568,7 +575,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   // 'page' mode is a plain GET form (works without JavaScript - the input is
   // name="q"); 'inline' adds the live dropdown on top of the same markup.
   return (
-    <div className={boxClasses} data-srch-id={config.blockId || undefined} style={boxStyle} ref={boxRef}>
+    <div className={boxClasses} data-srch-id={config.blockId || undefined} style={boxStyleWithVars} ref={boxRef}>
       {sizeStyle}
       <form
         action={config.resultsPath || '/search'}

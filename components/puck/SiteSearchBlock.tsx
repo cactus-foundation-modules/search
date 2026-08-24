@@ -2,7 +2,7 @@ import { searchCss, SRCH_SIZE_VARS } from '../public/search-css'
 // Field widget via the registry, never a direct import of its own module: that
 // module pulls in the Puck editor (and the TipTap it vendors), and this file is
 // on the public render path. Same rule core's config.tsx follows.
-import { ResponsiveSelectField } from '@/lib/puck/fields/registry'
+import { ResponsiveSelectField, SiteColourField } from '@/lib/puck/fields/registry'
 import { normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type Device, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import type { SearchSourceKey } from '@/modules/search/lib/types'
 
@@ -63,6 +63,13 @@ export type SiteSearchBlockProps = {
   cornerStyle?: string
   fieldStyle?: string
   accent?: string
+  // Optional colour overrides for the box itself. Blank = the theme tokens the
+  // box has always used. Each carries a light and a dark arm (light-dark()),
+  // so a header that needs a different field colour after dark can say so
+  // without a second block.
+  boxBg?: string
+  boxBorder?: string
+  boxText?: string
   widthMode?: string
   widthPx?: number
   align?: string
@@ -130,6 +137,18 @@ export function searchSizeStyles(size: SiteSearchBlockProps['size'], id: string 
   }
 }
 
+// The three colour overrides as inline custom properties, or undefined when
+// none is set - so a box that has never been coloured emits no style attribute
+// at all and renders byte-identically. Shared by the editor half, the RSC half
+// and the live island, which each paint a different root element.
+export function searchBoxColourVars(props: Pick<SiteSearchBlockProps, 'boxBg' | 'boxBorder' | 'boxText'>): React.CSSProperties | undefined {
+  const vars: Record<string, string> = {}
+  if (props.boxBg?.trim()) vars['--srch-bg'] = props.boxBg.trim()
+  if (props.boxBorder?.trim()) vars['--srch-border'] = props.boxBorder.trim()
+  if (props.boxText?.trim()) vars['--srch-fg'] = props.boxText.trim()
+  return Object.keys(vars).length ? (vars as React.CSSProperties) : undefined
+}
+
 export function SiteSearchBlock(props: SiteSearchBlockProps) {
   const { sizeClass, sizeCss } = searchSizeStyles(props.size, props.id)
   const showGhostDropdown = (props.mode ?? 'page') !== 'page'
@@ -144,6 +163,7 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
   const boxStyle: React.CSSProperties = props.widthMode === 'fixed'
     ? { width: props.widthPx ?? 320, maxWidth: '100%' }
     : { width: '100%' }
+  const colourVars = searchBoxColourVars(props)
 
   return (
     <div
@@ -151,7 +171,7 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
       // An icon button is its own width in the live render (no boxStyle at
       // all), so the canvas must not stretch it to 100% either - same markup,
       // same box, editor and page.
-      style={props.presentation === 'iconButton' ? undefined : boxStyle}
+      style={colourVars || props.presentation !== 'iconButton' ? { ...(props.presentation === 'iconButton' ? undefined : boxStyle), ...colourVars } : undefined}
       data-srch-id={props.id}
     >
       <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
@@ -169,7 +189,7 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
           {props.showIcon !== 'no' && (
             <svg className="srch-iconsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           )}
-          <span className="srch-input" style={{ color: 'var(--color-text-muted)' }}>{props.placeholder || 'Search…'}</span>
+          <span className="srch-input" style={{ color: 'var(--srch-fg, var(--color-text-muted))' }}>{props.placeholder || 'Search…'}</span>
           {props.presentation === 'fieldWithButton' && (
             <span className="srch-btn">{props.buttonLabel || 'Search'}</span>
           )}
@@ -297,6 +317,9 @@ export const siteSearchPuckComponent = {
         { value: 'neutral', label: 'Neutral' },
       ],
     },
+    boxBg: { type: 'custom' as const, label: 'Field background', render: ({ value, onChange, field }: { value: string; onChange: (v: string) => void; field: { label?: string } }) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+    boxBorder: { type: 'custom' as const, label: 'Field border colour', render: ({ value, onChange, field }: { value: string; onChange: (v: string) => void; field: { label?: string } }) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+    boxText: { type: 'custom' as const, label: 'Field text and icon colour', render: ({ value, onChange, field }: { value: string; onChange: (v: string) => void; field: { label?: string } }) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
     widthMode: {
       type: 'select' as const, label: 'Width',
       options: [
@@ -384,6 +407,9 @@ export const siteSearchPuckComponent = {
     cornerStyle: 'rounded',
     fieldStyle: 'outlined',
     accent: 'primary',
+    boxBg: '',
+    boxBorder: '',
+    boxText: '',
     widthMode: 'full',
     widthPx: 320,
     align: 'left',

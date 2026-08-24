@@ -1,6 +1,14 @@
 // All search chrome CSS, emitted as an injected <style> by the components that
 // need it (never a core globals.css edit - the stylesheet travels with the
 // block). Semantic tokens only; class prefix srch-.
+//
+// --srch-bg / --srch-border / --srch-fg are the box's three optional colour
+// overrides (the Field background / Field border / Field text fields). Each is
+// written as a fallback so a box that sets none renders exactly as it always
+// did, and each falls back to a DIFFERENT token per rule - the icon and the
+// placeholder are muted where the typed text is not - so setting --srch-fg
+// deliberately collapses them onto one colour, which is what "the text and the
+// icon" means to the person picking it.
 
 // The three sizes as bare declarations rather than only as finished rules: the
 // Size field is per-breakpoint, and a box set to (say) Medium on desktop and
@@ -28,13 +36,13 @@ export function searchCss(): string {
 .srch-accent-link{--srch-accent:var(--color-link)}
 .srch-accent-neutral{--srch-accent:var(--color-border-strong)}
 
-.srch-input-wrap{display:flex;align-items:center;gap:.5rem;margin:0;padding:var(--srch-pad);border-radius:var(--srch-radius);font:inherit;font-size:var(--srch-font);background:var(--color-surface);border:1px solid var(--color-border);color:var(--color-text)}
-.srch-style-filled .srch-input-wrap{background:var(--color-bg-subtle);border-color:transparent}
-.srch-style-minimal .srch-input-wrap{background:transparent;border-color:transparent;border-bottom:1px solid var(--color-border)}
+.srch-input-wrap{display:flex;align-items:center;gap:.5rem;margin:0;padding:var(--srch-pad);border-radius:var(--srch-radius);font:inherit;font-size:var(--srch-font);background:var(--srch-bg,var(--color-surface));border:1px solid var(--srch-border,var(--color-border));color:var(--srch-fg,var(--color-text))}
+.srch-style-filled .srch-input-wrap{background:var(--srch-bg,var(--color-bg-subtle));border-color:var(--srch-border,transparent)}
+.srch-style-minimal .srch-input-wrap{background:var(--srch-bg,transparent);border-color:transparent;border-bottom:1px solid var(--srch-border,var(--color-border))}
 .srch-input-wrap:focus-within{border-color:var(--srch-accent);outline:2px solid color-mix(in srgb,var(--srch-accent) 30%,transparent);outline-offset:1px}
 .srch-input{display:block;flex:1;min-width:0;border:none;outline:none;background:transparent;font:inherit;color:inherit;height:1.5em;line-height:1.5;margin:0;padding:0;appearance:none;-webkit-appearance:none;text-align:left}
 .srch-input::-webkit-search-decoration,.srch-input::-webkit-search-cancel-button{-webkit-appearance:none}
-.srch-input::placeholder{color:var(--color-text-muted)}
+.srch-input::placeholder{color:var(--srch-fg,var(--color-text-muted))}
 /* iOS Safari zooms the whole page whenever a focused input is under 16px, which
    on a phone reads as the search field suddenly being too wide with its left
    edge off-screen - and the bar autofocuses, so it happens the instant it
@@ -42,16 +50,16 @@ export function searchCss(): string {
    live input at 16px on touch pointers only: mice and trackpads keep the
    chosen size exactly, and no desktop layout moves. */
 @media (pointer:coarse){.srch-input{font-size:max(16px,var(--srch-font))}}
-.srch-iconsvg{width:var(--srch-icon);height:var(--srch-icon);flex:none;color:var(--color-text-muted)}
+.srch-iconsvg{width:var(--srch-icon);height:var(--srch-icon);flex:none;color:var(--srch-fg,var(--color-text-muted))}
 .srch-btn{flex:none;border:none;cursor:pointer;font:inherit;padding:.375rem .875rem;border-radius:calc(var(--srch-radius) - 2px);background:var(--srch-accent);color:var(--color-on-primary)}
 .srch-btn:hover{filter:brightness(1.08)}
-.srch-iconbtn{display:inline-flex;align-items:center;justify-content:center;gap:.375rem;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);cursor:pointer;font:inherit;padding:var(--srch-pad);border-radius:var(--srch-radius)}
+.srch-iconbtn{display:inline-flex;align-items:center;justify-content:center;gap:.375rem;border:1px solid var(--srch-border,var(--color-border));background:var(--srch-bg,var(--color-surface));color:var(--srch-fg,var(--color-text));cursor:pointer;font:inherit;padding:var(--srch-pad);border-radius:var(--srch-radius)}
 .srch-iconbtn:hover{border-color:var(--srch-accent)}
 /* Field style applies to the icon button too, so a magnifier standing in a row
    of bare header icons can drop its box: 'minimal' strips the border, the fill
    and the padding (leaving the glyph alone at its --srch-icon size), 'filled'
    keeps a soft chip. 'outlined' is the default and is untouched. */
-.srch-style-filled .srch-iconbtn{background:var(--color-bg-subtle);border-color:transparent}
+.srch-style-filled .srch-iconbtn{background:var(--srch-bg,var(--color-bg-subtle));border-color:var(--srch-border,transparent)}
 /* border:none, not a transparent border: a 1px transparent edge still measures,
    so the button came out 2px bigger than the glyph and would never line up with
    the bare icons either side of it. */

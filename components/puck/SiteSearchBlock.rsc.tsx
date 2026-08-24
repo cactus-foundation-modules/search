@@ -2,7 +2,7 @@ import { connection } from 'next/server'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { searchCss } from '../public/search-css'
 import SearchBoxClient, { type SearchBoxPublicConfig } from '../public/SearchBoxClient'
-import { searchSizeStyles, siteSearchPuckComponent, sourcesFromProps, type SiteSearchBlockProps } from './SiteSearchBlock'
+import { searchBoxColourVars, searchSizeStyles, siteSearchPuckComponent, sourcesFromProps, type SiteSearchBlockProps } from './SiteSearchBlock'
 
 // Server (RSC) half of the Search Box. Only the display subset of the props
 // crosses to the client island - and every prop here IS display config, so the
@@ -42,6 +42,9 @@ function toConfig(props: SiteSearchBlockProps): SearchBoxPublicConfig {
     cornerStyle: pick(props.cornerStyle, ['square', 'rounded', 'pill'] as const, 'rounded'),
     fieldStyle: pick(props.fieldStyle, ['outlined', 'filled', 'minimal'] as const, 'outlined'),
     accent: pick(props.accent, ['primary', 'link', 'neutral'] as const, 'primary'),
+    // Undefined unless at least one colour was picked, so an uncoloured box
+    // still renders without a style attribute of its own.
+    boxVars: searchBoxColourVars(props),
     widthMode: pick(props.widthMode, ['full', 'fixed'] as const, 'full'),
     widthPx: Math.max(120, Math.min(1200, props.widthPx ?? 320)),
     align: pick(props.align, ['left', 'centre', 'right'] as const, 'left'),
