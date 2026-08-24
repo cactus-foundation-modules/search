@@ -12,8 +12,7 @@
 // Resolved through the core registry rather than by importing the provider
 // module, exactly as lib/query.ts resolves shop.product-card-prices: a static
 // cross-module import breaks every build without that module installed.
-import { prisma } from '@/lib/db/prisma'
-import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
+import { getInstalledManifests } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 
 type ShopProductTextProvider = {
@@ -30,10 +29,7 @@ async function providers(): Promise<ShopProductTextProvider[]> {
   const registered = (moduleExtensionPointComponents[POINT] ?? {}) as Record<string, ShopProductTextProvider>
   if (Object.keys(registered).length === 0) return []
 
-  const modules = await prisma.module.findMany({
-    where: { ...INSTALLED_MODULE_WHERE },
-    select: { manifest: true },
-  })
+  const modules = await getInstalledManifests()
 
   const out: ShopProductTextProvider[] = []
   for (const mod of modules) {

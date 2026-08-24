@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
-import { INSTALLED_MODULE_WHERE } from '@/lib/modules/live-status'
+import { getInstalledManifests } from '@/lib/modules/live-status'
 import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
 import { getSearchSettings } from './settings'
 import { listAvailableSources } from './indexer'
@@ -108,10 +108,7 @@ async function resolveHiddenProductIds(productIds: string[]): Promise<Set<string
   const providers = (moduleExtensionPointComponents[LISTABILITY_POINT] ?? {}) as Record<string, ListabilityProvider>
   if (Object.keys(providers).length === 0) return out
 
-  const modules = await prisma.module.findMany({
-    where: { ...INSTALLED_MODULE_WHERE },
-    select: { manifest: true },
-  })
+  const modules = await getInstalledManifests()
   for (const mod of modules) {
     const manifest = mod.manifest as { extensionPoints?: Array<{ point: string; id: string }> } | null
     for (const entry of manifest?.extensionPoints ?? []) {
@@ -135,10 +132,7 @@ async function resolveFromPrices(productIds: string[]): Promise<Map<string, Card
   const providers = (moduleExtensionPointComponents[CARD_PRICE_POINT] ?? {}) as Record<string, CardPriceProvider>
   if (Object.keys(providers).length === 0) return out
 
-  const modules = await prisma.module.findMany({
-    where: { ...INSTALLED_MODULE_WHERE },
-    select: { manifest: true },
-  })
+  const modules = await getInstalledManifests()
   for (const mod of modules) {
     const manifest = mod.manifest as { extensionPoints?: Array<{ point: string; id: string }> } | null
     for (const entry of manifest?.extensionPoints ?? []) {
