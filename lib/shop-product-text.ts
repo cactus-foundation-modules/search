@@ -13,7 +13,7 @@
 // module, exactly as lib/query.ts resolves shop.product-card-prices: a static
 // cross-module import breaks every build without that module installed.
 import { getInstalledManifests } from '@/lib/modules/live-status'
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 
 type ShopProductTextProvider = {
   textFor: (productIds: string[]) => Promise<Record<string, string>>

@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 import { getInstalledManifests } from '@/lib/modules/live-status'
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 import { getSearchSettings } from './settings'
 import { listAvailableSources } from './indexer'
 import { splitPrefix, looseTerms } from './query-terms'
