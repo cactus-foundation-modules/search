@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Render } from '@puckeditor/core/rsc'
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { getModuleLayoutPuckRscConfig } from '@/lib/puck/config.rsc'
 import { injectSearchContext } from '@/modules/search/lib/inject-search-context'

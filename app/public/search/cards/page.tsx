@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { connection } from 'next/server'
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 
 // HTML source for the dropdown's designed product cards. The live search island
 // (SearchBoxClient) fetches this page and lifts the `#srch-shop-cards` fragment
