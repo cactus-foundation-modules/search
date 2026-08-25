@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { moduleExtensionPointComponents } from '@/lib/modules/extension-points'
+import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 import { listAvailableSources } from '@/modules/search/lib/indexer'
 import { syncIndexAlert } from '@/modules/search/lib/alerts'
 
