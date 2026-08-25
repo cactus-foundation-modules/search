@@ -9,7 +9,10 @@ import { ResultRow, ProductCardLite, groupHits, type HitDisplayOptions } from '.
 // props (client props land verbatim in view-source); rendered by
 // SiteSearchBlock.rsc, which also emits the stylesheet.
 
-export type OpenWidth = 'field' | 'wide' | 'viewport'
+// 'wide' is the 0.1.26 spelling of 'container', kept working so a block that
+// stored it keeps behaving. Both mean "grow leftwards to the edge of whatever
+// this box shares its space with".
+export type OpenWidth = 'field' | 'container' | 'viewport'
 
 export type SearchBoxPublicConfig = {
   mode: 'page' | 'inline' | 'overlay'
@@ -48,13 +51,12 @@ export type SearchBoxPublicConfig = {
   align: 'left' | 'centre' | 'right'
   dropdownWidth: 'field' | 'container' | 'viewport'
   // Overlay mode with a field trigger only: how wide the live field grows when
-  // it opens, per breakpoint. 'wide' and 'viewport' both keep the field's
+  // it opens, per breakpoint. 'container' and 'viewport' both keep the field's
   // right-hand edge where the trigger's was and grow leftwards, so an opened
   // header search covers whatever sits beside it instead of shoving the row
   // about. `breakpoints` is the site's own tablet/mobile widths, resolved
   // server-side, so the island can tell which breakpoint it is on.
   openWidth: { desktop: OpenWidth; tablet: OpenWidth; mobile: OpenWidth }
-  openWidthPx: number
   breakpoints: { mobile: number; tablet: number }
   productDisplay: 'rows' | 'cards' | 'shopCards'
   dropdownColumns: number
@@ -127,11 +129,28 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   const [barTop, setBarTop] = useState(0)
   // cw = documentElement.clientWidth (viewport sans scrollbar), captured with the
   // rect so the results panel can be sized against the real viewport.
-  const [anchorRect, setAnchorRect] = useState<{ top: number; left: number; width: number; height: number; cw: number } | null>(null)
+  // containerLeft = how far left the field may grow: see measureAnchor.
+  const [anchorRect, setAnchorRect] = useState<{ top: number; left: number; width: number; height: number; cw: number; containerLeft: number } | null>(null)
 
   const measureAnchor = useCallback(() => {
-    const r = boxRef.current?.getBoundingClientRect()
-    if (r) setAnchorRect({ top: r.top, left: r.left, width: r.width, height: r.height, cw: document.documentElement.clientWidth })
+    const el = boxRef.current
+    const r = el?.getBoundingClientRect()
+    if (!el || !r) return
+    // The left edge a widened field is allowed to reach: the nearest ancestor
+    // that actually has room to the box's left - in a header, the cell the box
+    // shares with the menu button, whose left edge is where the logo's cell
+    // ends. Measured rather than configured because that edge moves with the
+    // viewport: a fixed pixel width pins the wrong end and swallows the logo
+    // as the screen narrows. Ancestors that match the box exactly (Puck's own
+    // per-block wrappers, a column the box fills) are skipped, as are
+    // display:contents wrappers, which measure zero.
+    let containerLeft = r.left
+    for (let a = el.parentElement; a && a.tagName !== 'BODY'; a = a.parentElement) {
+      const ar = a.getBoundingClientRect()
+      if (ar.width === 0) continue
+      if (ar.left < r.left - 1) { containerLeft = ar.left; break }
+    }
+    setAnchorRect({ top: r.top, left: r.left, width: r.width, height: r.height, cw: document.documentElement.clientWidth, containerLeft })
   }, [])
 
   // Where the bar's top edge sits: the bottom of the header this box is in, so
@@ -547,8 +566,8 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
           const right = anchorRect.left + anchorRect.width
           const fieldWidth = grow === 'viewport'
             ? Math.max(anchorRect.width, anchorRect.cw - gutter * 2)
-            : grow === 'wide'
-              ? Math.min(Math.max(config.openWidthPx, anchorRect.width), Math.max(anchorRect.width, right - gutter))
+            : grow === 'container'
+              ? Math.max(anchorRect.width, right - Math.max(gutter, anchorRect.containerLeft))
               : anchorRect.width
           const fieldLeft = grow === 'viewport'
             ? Math.max(gutter, Math.round((anchorRect.cw - fieldWidth) / 2))
