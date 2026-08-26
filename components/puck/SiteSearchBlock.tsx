@@ -180,7 +180,6 @@ export function searchBoxColourVars(props: Pick<SiteSearchBlockProps, 'boxBg' | 
 
 export function SiteSearchBlock(props: SiteSearchBlockProps) {
   const { sizeClass, sizeCss } = searchSizeStyles(props.size, props.id)
-  const showGhostDropdown = (props.mode ?? 'page') !== 'page'
   const boxClasses = [
     'srch-box',
     sizeClass,
@@ -224,35 +223,9 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
           )}
         </div>
       )}
-      {showGhostDropdown && props.presentation !== 'iconButton' && (
-        <div style={{ marginTop: 6, border: '1px solid var(--color-border)', borderRadius: 10, padding: '.375rem', opacity: 0.6, pointerEvents: 'none' }}>
-          {props.productDisplay === 'cards' || props.productDisplay === 'shopCards' ? (
-            <div className="srch-cardgrid" style={{ ['--srch-cols' as string]: String(parseInt(props.dropdownColumns ?? '3', 10) || 3) } as React.CSSProperties}>
-              {[0, 1, 2].map((i) => (
-                <span key={i} className="srch-card">
-                  <span className="srch-card-img" style={{ display: 'block' }} />
-                  <span className="srch-card-body" style={{ display: 'block' }}>
-                    <span style={{ display: 'block', height: 12, width: '80%', background: 'var(--color-border)', borderRadius: 4 }} />
-                    <span style={{ display: 'block', height: 10, width: '40%', background: 'var(--color-border)', borderRadius: 4, marginTop: 6 }} />
-                  </span>
-                </span>
-              ))}
-            </div>
-          ) : (
-            [0, 1].map((i) => (
-              <span key={i} className="srch-row" style={{ display: 'grid' }}>
-                {props.showThumbnails !== 'no' ? <span className="srch-row-thumb" /> : <span />}
-                <span className="srch-row-main">
-                  <span style={{ display: 'block', height: 12, width: '60%', background: 'var(--color-border)', borderRadius: 4 }} />
-                  {props.showExcerpts !== 'no' && (
-                    <span style={{ display: 'block', height: 10, width: '90%', background: 'var(--color-border)', borderRadius: 4, marginTop: 6 }} />
-                  )}
-                </span>
-              </span>
-            ))
-          )}
-        </div>
-      )}
+      {/* No preview of the dropdown results here. The canvas draws the box
+          only: a ghost results panel is taller than the box itself, which
+          pushed everything below it out of reach in a header layout. */}
     </div>
   )
 }
