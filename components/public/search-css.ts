@@ -2,13 +2,22 @@
 // need it (never a core globals.css edit - the stylesheet travels with the
 // block). Semantic tokens only; class prefix srch-.
 //
-// --srch-bg / --srch-border / --srch-fg are the box's three optional colour
+// --srch-bg / --srch-border / --srch-fg are the box's three broad colour
 // overrides (the Field background / Field border / Field text fields). Each is
 // written as a fallback so a box that sets none renders exactly as it always
 // did, and each falls back to a DIFFERENT token per rule - the icon and the
 // placeholder are muted where the typed text is not - so setting --srch-fg
 // deliberately collapses them onto one colour, which is what "the text and the
 // icon" means to the person picking it.
+//
+// --srch-placeholder / --srch-typed split that last one back apart for the two
+// states people actually see: the prompt sitting in an empty box, and the words
+// they have just typed. Three-deep fallback chain, narrowest first:
+//   own override -> --srch-fg -> the token that rule always used.
+// So a box that sets neither is untouched, a box that sets only "field text"
+// keeps the old collapse-onto-one-colour behaviour, and a box that sets one of
+// these wins over both. Each arrives already carrying its own light and dark
+// arm via light-dark(), so no extra rules are needed for dark mode.
 
 // The three sizes as bare declarations rather than only as finished rules: the
 // Size field is per-breakpoint, and a box set to (say) Medium on desktop and
@@ -40,14 +49,19 @@ export function searchCss(): string {
 .srch-style-filled .srch-input-wrap{background:var(--srch-bg,var(--color-bg-subtle));border-color:var(--srch-border,transparent)}
 .srch-style-minimal .srch-input-wrap{background:var(--srch-bg,transparent);border-color:transparent;border-bottom:1px solid var(--srch-border,var(--color-border))}
 .srch-input-wrap:focus-within{border-color:var(--srch-accent);outline:2px solid color-mix(in srgb,var(--srch-accent) 30%,transparent);outline-offset:1px}
-.srch-input{display:block;flex:1;min-width:0;border:none;outline:none;background:transparent;font:inherit;color:inherit;height:1.5em;line-height:1.5;margin:0;padding:0;appearance:none;-webkit-appearance:none;text-align:left}
+.srch-input{display:block;flex:1;min-width:0;border:none;outline:none;background:transparent;font:inherit;color:var(--srch-typed,inherit);height:1.5em;line-height:1.5;margin:0;padding:0;appearance:none;-webkit-appearance:none;text-align:left}
 .srch-input::-webkit-search-decoration,.srch-input::-webkit-search-cancel-button{-webkit-appearance:none}
 /* The closed trigger's placeholder is a span, not an input, so it wraps - and
    with the field at header size a placeholder ending in an ellipsis put the
    dots on a second line, hanging out below the box (the span is one line tall).
    Clip instead: whatever doesn't fit is simply not shown. */
-.srch-input-static{white-space:nowrap;overflow:hidden}
-.srch-input::placeholder{color:var(--srch-fg,var(--color-text-muted))}
+.srch-input-static{white-space:nowrap;overflow:hidden;color:var(--srch-placeholder,var(--srch-fg,var(--color-text-muted)))}
+/* The same span once there is a query in it (the closed overlay trigger shows
+   what was searched for). It is typed text, not a prompt, so it takes the typed
+   colour - and the class is the only difference between the two states, which
+   keeps the editor canvas (always the placeholder) honest. */
+.srch-input-static.srch-input-typed{color:var(--srch-typed,var(--srch-fg,var(--color-text)))}
+.srch-input::placeholder{color:var(--srch-placeholder,var(--srch-fg,var(--color-text-muted)))}
 /* iOS Safari zooms the whole page whenever a focused input is under 16px, which
    on a phone reads as the search field suddenly being too wide with its left
    edge off-screen - and the bar autofocuses, so it happens the instant it

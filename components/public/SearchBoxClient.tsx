@@ -651,7 +651,10 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
           onClick={openOverlay}
         >
           {config.showIcon && <SearchIcon />}
-          <span className="srch-input srch-input-static" style={{ color: 'var(--srch-fg, var(--color-text-muted))' }}>{q.trim() || config.placeholder}</span>
+          {/* Placeholder colour while it is empty, typed colour once there is a
+              query in it - the class is the only difference, so the editor
+              canvas (which only ever shows the placeholder) matches exactly. */}
+          <span className={`srch-input srch-input-static${q.trim() ? ' srch-input-typed' : ''}`}>{q.trim() || config.placeholder}</span>
         </button>
         {overlay}
       </div>

@@ -70,6 +70,11 @@ export type SiteSearchBlockProps = {
   boxBg?: string
   boxBorder?: string
   boxText?: string
+  // Narrower than boxText, and win over it: the prompt in an empty box, and the
+  // words someone has just typed. Blank = whatever boxText resolves to, which
+  // is what every box did before these existed.
+  boxPlaceholder?: string
+  boxTyped?: string
   widthMode?: string
   widthPx?: number
   align?: string
@@ -170,11 +175,13 @@ export function searchOpenWidth(props: Pick<SiteSearchBlockProps, 'openWidth'>):
 // none is set - so a box that has never been coloured emits no style attribute
 // at all and renders byte-identically. Shared by the editor half, the RSC half
 // and the live island, which each paint a different root element.
-export function searchBoxColourVars(props: Pick<SiteSearchBlockProps, 'boxBg' | 'boxBorder' | 'boxText'>): React.CSSProperties | undefined {
+export function searchBoxColourVars(props: Pick<SiteSearchBlockProps, 'boxBg' | 'boxBorder' | 'boxText' | 'boxPlaceholder' | 'boxTyped'>): React.CSSProperties | undefined {
   const vars: Record<string, string> = {}
   if (props.boxBg?.trim()) vars['--srch-bg'] = props.boxBg.trim()
   if (props.boxBorder?.trim()) vars['--srch-border'] = props.boxBorder.trim()
   if (props.boxText?.trim()) vars['--srch-fg'] = props.boxText.trim()
+  if (props.boxPlaceholder?.trim()) vars['--srch-placeholder'] = props.boxPlaceholder.trim()
+  if (props.boxTyped?.trim()) vars['--srch-typed'] = props.boxTyped.trim()
   return Object.keys(vars).length ? (vars as React.CSSProperties) : undefined
 }
 
@@ -217,7 +224,7 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
           {props.showIcon !== 'no' && (
             <svg className="srch-iconsvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           )}
-          <span className="srch-input srch-input-static" style={{ color: 'var(--srch-fg, var(--color-text-muted))' }}>{props.placeholder || 'Search…'}</span>
+          <span className="srch-input srch-input-static">{props.placeholder || 'Search…'}</span>
           {props.presentation === 'fieldWithButton' && (
             <span className="srch-btn">{props.buttonLabel || 'Search'}</span>
           )}
@@ -322,6 +329,8 @@ export const siteSearchPuckComponent = {
     boxBg: { type: 'custom' as const, label: 'Field background', render: ({ value, onChange, field }: { value: string; onChange: (v: string) => void; field: { label?: string } }) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
     boxBorder: { type: 'custom' as const, label: 'Field border colour', render: ({ value, onChange, field }: { value: string; onChange: (v: string) => void; field: { label?: string } }) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
     boxText: { type: 'custom' as const, label: 'Field text and icon colour', render: ({ value, onChange, field }: { value: string; onChange: (v: string) => void; field: { label?: string } }) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+    boxPlaceholder: { type: 'custom' as const, label: 'Placeholder text colour (blank = follow the field text)', render: ({ value, onChange, field }: { value: string; onChange: (v: string) => void; field: { label?: string } }) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
+    boxTyped: { type: 'custom' as const, label: 'Typed text colour (blank = follow the field text)', render: ({ value, onChange, field }: { value: string; onChange: (v: string) => void; field: { label?: string } }) => <SiteColourField value={value} onChange={onChange} label={field.label} allowManual /> },
     widthMode: {
       type: 'select' as const, label: 'Width',
       options: [
@@ -421,6 +430,8 @@ export const siteSearchPuckComponent = {
     boxBg: '',
     boxBorder: '',
     boxText: '',
+    boxPlaceholder: '',
+    boxTyped: '',
     widthMode: 'full',
     widthPx: 320,
     align: 'left',
