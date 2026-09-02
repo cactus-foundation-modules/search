@@ -153,6 +153,29 @@ async function resolveFromPrices(productIds: string[]): Promise<Map<string, Card
   return out
 }
 
+// The products of a candidate list a shopper may actually be shown right now:
+// ACTIVE, not hidden from the catalogue, and not one the shop is keeping off
+// its listings for being out of stock. Asked live wherever product ids leave
+// this file, because the index stores none of it and lags all of it.
+type ListableProduct = { price: string; sale_price: string | null }
+
+async function listableProducts(productIds: string[]): Promise<Map<string, ListableProduct>> {
+  const [rows, hidden] = await Promise.all([
+    prisma.$queryRaw<Array<{ id: string; price: string; sale_price: string | null }>>`
+      SELECT "id", "price"::text AS price, "sale_price"::text AS sale_price
+      FROM "shp_products"
+      WHERE "id" = ANY(${productIds}) AND "status" = 'ACTIVE' AND "catalogue_hidden" = false
+    `,
+    resolveHiddenProductIds(productIds),
+  ])
+  const out = new Map<string, ListableProduct>()
+  for (const row of rows) {
+    if (hidden.has(row.id)) continue
+    out.set(row.id, { price: row.price, sale_price: row.sale_price })
+  }
+  return out
+}
+
 // Live price/visibility for product hits. The index never stores money or
 // stock: prices move (sales, sheet imports) while the index sleeps. A product
 // that is no longer publicly visible is dropped here even if the index lags.
@@ -160,17 +183,11 @@ async function enrichProductHits(hits: SearchHit[]): Promise<SearchHit[]> {
   const productIds = hits.filter((h) => h.source === 'shop-product').map((h) => h.entityId)
   if (productIds.length === 0) return hits
   try {
-    const [rows, symbol, fromPrices, hidden] = await Promise.all([
-      prisma.$queryRaw<Array<{ id: string; price: string; sale_price: string | null }>>`
-        SELECT "id", "price"::text AS price, "sale_price"::text AS sale_price
-        FROM "shp_products"
-        WHERE "id" = ANY(${productIds}) AND "status" = 'ACTIVE' AND "catalogue_hidden" = false
-      `,
+    const [byId, symbol, fromPrices] = await Promise.all([
+      listableProducts(productIds),
       shopCurrencySymbol(),
       resolveFromPrices(productIds),
-      resolveHiddenProductIds(productIds),
     ])
-    const byId = new Map(rows.map((r) => [r.id, r]))
     const out: SearchHit[] = []
     for (const hit of hits) {
       if (hit.source !== 'shop-product') {
@@ -178,7 +195,7 @@ async function enrichProductHits(hits: SearchHit[]): Promise<SearchHit[]> {
         continue
       }
       const row = byId.get(hit.entityId)
-      if (!row || hidden.has(hit.entityId)) continue
+      if (!row) continue
       // A product priced by a companion module (variations) shows the cheapest
       // variation - a variant parent's own price is 0 and never shown anywhere.
       // Matches the storefront card exactly (modules/shop/lib/card-template.tsx).
@@ -199,6 +216,33 @@ async function enrichProductHits(hits: SearchHit[]): Promise<SearchHit[]> {
     // Shop table vanished mid-query (uninstall race): drop product hits.
     return hits.filter((h) => h.source !== 'shop-product')
   }
+}
+
+// Someone typing a product's name wants that product, not the best-ranked
+// document that happens to mention it. ts_rank_cd alone cannot deliver that:
+// it rewards repetition, so a long body beats a short exact title. The tiers
+// are far enough apart that a title match always outranks a body match.
+function titleBoost(q: string): Prisma.Sql {
+  return Prisma.sql`
+    CASE
+      WHEN lower(d."title") = lower(${q}) THEN 1000
+      WHEN left(lower(d."title"), length(${q})) = lower(${q}) THEN 100
+      WHEN position(lower(${q}) IN lower(d."title")) > 0 THEN 10
+      ELSE 0
+    END
+  `
+}
+
+// The one relevance figure, shared by the paged query and the product-id sweep
+// behind the filter grid, so the two can never disagree about which product
+// comes first. `tq` is a fresh tsquery expression - Prisma re-binds parameters
+// per use site, so each caller passes its own.
+function relevance(tq: Prisma.Sql, weightsJson: string, q: string): Prisma.Sql {
+  return Prisma.sql`
+    (ts_rank_cd(d."search_vector", ${tq})
+      * COALESCE((${weightsJson}::jsonb->>d."source")::numeric, 1)
+      + ${titleBoost(q)})::float8
+  `
 }
 
 export async function resolveSearchableSources(requested?: SearchSourceKey[]): Promise<SearchSourceKey[]> {
@@ -234,18 +278,6 @@ export async function searchDocuments(opts: SearchQueryOptions): Promise<SearchQ
   const offset = Math.max(0, opts.offset)
   const snippetLength = opts.snippetLength ?? 'medium'
 
-  // Someone typing a product's name wants that product, not the best-ranked
-  // document that happens to mention it. ts_rank_cd alone cannot deliver that:
-  // it rewards repetition, so a long body beats a short exact title. The tiers
-  // are far enough apart that a title match always outranks a body match.
-  const titleBoostSql = Prisma.sql`
-    CASE
-      WHEN lower(d."title") = lower(${q}) THEN 1000
-      WHEN left(lower(d."title"), length(${q})) = lower(${q}) THEN 100
-      WHEN position(lower(${q}) IN lower(d."title")) > 0 THEN 10
-      ELSE 0
-    END
-  `
   const orderSql = opts.sort === 'newest'
     ? Prisma.sql`d."source_updated_at" DESC NULLS LAST, rank DESC`
     : Prisma.sql`rank DESC, d."source_updated_at" DESC NULLS LAST`
@@ -253,11 +285,7 @@ export async function searchDocuments(opts: SearchQueryOptions): Promise<SearchQ
   // makeTq is a factory, not a value: each use site needs its own parameter
   // bindings.
   const run = async (makeTq: () => Prisma.Sql) => {
-    const rankSql = Prisma.sql`
-      (ts_rank_cd(d."search_vector", ${makeTq()})
-        * COALESCE((${weightsJson}::jsonb->>d."source")::numeric, 1)
-        + ${titleBoostSql})::float8
-    `
+    const rankSql = relevance(makeTq(), weightsJson, q)
     const headlineSql = opts.highlight
       ? Prisma.sql`ts_headline(${lang}::regconfig, left(d."body", 30000), ${makeTq()}, ${HEADLINE_OPTIONS[snippetLength]})`
       : Prisma.sql`NULL::text`
@@ -320,5 +348,65 @@ export async function searchDocuments(opts: SearchQueryOptions): Promise<SearchQ
     total: Number(countRows[0]?.total ?? 0),
     sources,
     relaxed,
+  }
+}
+
+// Every product the query matches, in the same relevance order the paged query
+// would put them in, capped. This is what the filter grid on the results page is
+// built over: a panel offering "Blue" that only knew about page one of the
+// results would hide the blue product on page two, which is precisely the thing
+// a shopper was filtering to find.
+//
+// The cap is the caller's, and it is a real limit rather than a page: past it
+// the grid is over the most relevant N products and says so by having a "show
+// more" that ends. Nothing above the cap was ever going to be scrolled to.
+export async function searchProductIds(opts: {
+  q: string
+  includeMembersTier: boolean
+  limit: number
+}): Promise<string[]> {
+  const q = opts.q.trim()
+  if (!q) return []
+  const sources = await resolveSearchableSources(['shop-product'])
+  if (!sources.includes('shop-product')) return []
+
+  const settings = await getSearchSettings()
+  const lang = settings.language
+  const weightsJson = JSON.stringify(settings.weights)
+  const tierSql = opts.includeMembersTier
+    ? Prisma.sql`d."tier" IN ('public', 'members')`
+    : Prisma.sql`d."tier" = 'public'`
+  const limit = Math.max(1, Math.min(500, Math.floor(opts.limit) || 1))
+
+  const run = (makeTq: () => Prisma.Sql) => prisma.$queryRaw<Array<{ entity_id: string }>>`
+    SELECT d."entity_id"
+    FROM "srch_documents" d
+    WHERE d."source" = 'shop-product' AND ${tierSql} AND d."search_vector" @@ ${makeTq()}
+    ORDER BY ${relevance(makeTq(), weightsJson, q)} DESC, d."source_updated_at" DESC NULLS LAST
+    LIMIT ${limit}
+  `
+
+  let rows: Array<{ entity_id: string }>
+  try {
+    rows = await run(() => tsQuery(lang, q))
+    // Every term required found nothing - retry on any term, exactly as the
+    // paged query does, so the grid holds the same products the list would.
+    if (rows.length === 0) {
+      const loose = looseTerms(q)
+      if (loose) rows = await run(() => Prisma.sql`to_tsquery(${lang}::regconfig, ${loose})`)
+    }
+  } catch {
+    // A malformed tsquery must never 500 a public page.
+    return []
+  }
+  if (rows.length === 0) return []
+
+  const ids = rows.map((r) => r.entity_id)
+  try {
+    const listable = await listableProducts(ids)
+    return ids.filter((id) => listable.has(id))
+  } catch {
+    // Shop table vanished mid-query (uninstall race): no product grid.
+    return []
   }
 }

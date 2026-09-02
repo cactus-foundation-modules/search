@@ -32,6 +32,14 @@ set the Search Box block's "Products shown as" to "Designed product cards
 `/search/cards` (colour swatches and all), falling back to its own plain
 cards if the shop is closed or the fetch fails.
 
+If a module also answers the `search.product-filters` point (filters-for-shop
+does), the results page puts the shop's own filter panel beside the product
+results: the same ticks, swatches and counts a category page offers, cut down to
+the filters these particular results can actually be narrowed by, and built over
+every matching product rather than the page of them on screen. Turn it off per
+block with "Product filters panel". The other content types carry on in the list
+below it, with the pager over them alone.
+
 ## Installation
 
 Add to your Cactus installation's `modules.json` and deploy, or install from

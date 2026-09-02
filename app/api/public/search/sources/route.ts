@@ -5,7 +5,8 @@ import { syncIndexAlert } from '@/modules/search/lib/alerts'
 
 // Probe used by the Puck blocks' resolveFields to narrow their sidebars to the
 // sources this install actually has, and to offer the designed-shop-card
-// option only when shop has registered its search.shop-cards provider.
+// option only when shop has registered its search.shop-cards provider, and the
+// product-filters panel only when some module answers search.product-filters.
 // Reveals nothing beyond which modules are installed - the same fact the
 // public pages themselves reveal.
 export async function GET() {
@@ -16,8 +17,12 @@ export async function GET() {
   const shopCardProvider = Boolean(
     (moduleExtensionPointComponents['search.shop-cards']?.shop as { renderProductCards?: unknown } | undefined)?.renderProductCards,
   )
+  const productFilterProvider = Object.values(moduleExtensionPointComponents['search.product-filters'] ?? {}).some(
+    (p) => typeof (p as { renderFilteredProductCards?: unknown } | undefined)?.renderFilteredProductCards === 'function',
+  )
   return NextResponse.json({
     sources: sources.filter((s) => s.enabled).map((s) => ({ key: s.key, label: s.label })),
     shopCardProvider,
+    productFilterProvider,
   })
 }

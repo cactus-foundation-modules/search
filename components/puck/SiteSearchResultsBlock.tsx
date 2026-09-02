@@ -8,18 +8,25 @@ import type { SearchSourceKey } from '@/modules/search/lib/types'
 // Cached probe shared shape with the search box (separate cache: this one also
 // carries the shop-cards provider flag).
 let _probeCache: { data: ProbeResult; expires: number } | null = null
-type ProbeResult = { sources: Array<{ key: string; label: string }>; shopCardProvider: boolean }
+type ProbeResult = { sources: Array<{ key: string; label: string }>; shopCardProvider: boolean; productFilterProvider: boolean }
 async function fetchProbe(): Promise<ProbeResult> {
   const now = Date.now()
   if (_probeCache && now < _probeCache.expires) return _probeCache.data
   try {
     const res = await fetch('/api/m/search/public/sources')
-    if (!res.ok) return _probeCache?.data ?? { sources: [], shopCardProvider: false }
-    const data = (await res.json()) as { sources?: Array<{ key: string; label: string }>; shopCardProvider?: boolean }
-    _probeCache = { data: { sources: data.sources ?? [], shopCardProvider: data.shopCardProvider === true }, expires: now + 60_000 }
+    if (!res.ok) return _probeCache?.data ?? { sources: [], shopCardProvider: false, productFilterProvider: false }
+    const data = (await res.json()) as { sources?: Array<{ key: string; label: string }>; shopCardProvider?: boolean; productFilterProvider?: boolean }
+    _probeCache = {
+      data: {
+        sources: data.sources ?? [],
+        shopCardProvider: data.shopCardProvider === true,
+        productFilterProvider: data.productFilterProvider === true,
+      },
+      expires: now + 60_000,
+    }
     return _probeCache.data
   } catch {
-    return _probeCache?.data ?? { sources: [], shopCardProvider: false }
+    return _probeCache?.data ?? { sources: [], shopCardProvider: false, productFilterProvider: false }
   }
 }
 
@@ -43,6 +50,7 @@ export type SiteSearchResultsBlockProps = {
   sortControl?: string
   // Result cards
   productCardStyle?: string
+  productFilters?: string
   showThumbnails?: string
   thumbnailShape?: string
   showExcerpts?: string
@@ -171,6 +179,7 @@ export const siteSearchResultsPuckComponent = {
         { value: 'shopCard', label: 'Designed shop product cards' },
       ],
     },
+    productFilters: { type: 'select' as const, label: 'Product filters panel', options: yesNo },
     showThumbnails: { type: 'select' as const, label: 'Show thumbnails', options: yesNo },
     thumbnailShape: {
       type: 'select' as const, label: 'Thumbnail shape',
@@ -230,6 +239,11 @@ export const siteSearchResultsPuckComponent = {
     // shows for the same products. Degrades to standard rows on its own when
     // shop is absent (no search.shop-cards provider) - see the RSC half.
     productCardStyle: 'shopCard',
+    // A filter panel beside the product results whenever a module offers one -
+    // the same panel the category pages use, cut down to the filters these
+    // results can actually be sorted by. Inert when nothing answers the
+    // search.product-filters point.
+    productFilters: 'yes',
     showThumbnails: 'yes',
     thumbnailShape: 'landscape',
     showExcerpts: 'yes',
@@ -265,6 +279,9 @@ export const siteSearchResultsPuckComponent = {
       delete next.productCardStyle
     }
     const shopCards = productsOn && probe.shopCardProvider && (props.productCardStyle ?? 'shopCard') === 'shopCard'
+    // The panel hangs off the designed cards: it is the shop's own filter shell
+    // around the shop's own grid, so it has nowhere to live on standard rows.
+    if (!shopCards || !probe.productFilterProvider) delete next.productFilters
     // The designed shop card is stamped server-side and cannot be appended by
     // the client load-more island - numbered pagination only in that mode.
     if (shopCards) delete next.paginationStyle

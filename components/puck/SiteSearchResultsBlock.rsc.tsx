@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { getMemberFromCookie } from '@/lib/members/session'
 import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
-import { searchDocuments, parseSourcesParam, type SnippetLength } from '@/modules/search/lib/query'
+import { searchDocuments, searchProductIds, parseSourcesParam, resolveSearchableSources, type SnippetLength } from '@/modules/search/lib/query'
 import { SOURCE_LABELS, type SearchHit, type SearchSourceKey } from '@/modules/search/lib/types'
 import { searchCss } from '../public/search-css'
 import { ResultRow, ProductCardLite, groupHits, type HitDisplayOptions } from '../public/ResultCard'
@@ -16,6 +16,19 @@ import { siteSearchResultsPuckComponent, resultsSourcesFromProps, type SiteSearc
 type ShopCardsProvider = {
   renderProductCards?: (productIds: string[], opts?: { columns?: number }) => Promise<ReactNode | null>
 }
+
+// Whichever module offers a filter panel over a set of products (filters-for-shop
+// today). Read by id-agnostic lookup rather than by name: the point is the
+// contract, and search has no business knowing which module answers it.
+type ProductFiltersProvider = {
+  renderFilteredProductCards?: (productIds: string[], opts?: { columns?: number; pageSize?: number }) => Promise<ReactNode | null>
+}
+
+// How many products the filter grid is built over. Every one of them is
+// server-rendered as a card up front (the shell shows a page at a time), so this
+// is a page-weight ceiling as much as a relevance one - and nothing past the
+// hundred-and-twentieth most relevant match was going to be scrolled to.
+const PRODUCT_GRID_LIMIT = 120
 
 function href(params: Record<string, string | number | undefined>): string {
   const sp = new URLSearchParams()
@@ -74,32 +87,6 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
     ? (blockSources.length ? paramSources.filter((s) => blockSources.includes(s)) : paramSources)
     : blockSources
 
-  // Session (admin or member) widens results to members-only content.
-  const [adminUser, member] = await Promise.all([
-    getSessionFromCookie().catch(() => null),
-    getMemberFromCookie().catch(() => null),
-  ])
-
-  const result = await searchDocuments({
-    q,
-    sources: effectiveSources.length ? effectiveSources : undefined,
-    includeMembersTier: Boolean(adminUser || member),
-    limit: perPage,
-    offset: (page - 1) * perPage,
-    sort,
-    highlight: display.highlight && display.showExcerpts,
-    snippetLength,
-  })
-  const { hits, total } = result
-
-  // Filter tabs list the sources this block is allowed to search (not just
-  // those with hits - a tab that vanishes when empty cannot be un-clicked).
-  const tabSources = blockSources.length ? blockSources : result.sources
-  const activeTab = paramSources.length === 1 ? paramSources[0] : null
-
-  const heading = (props.headingTemplate ?? 'Results for "{query}"').replace('{query}', q)
-  const countLine = (props.countTemplate ?? '{count} results').replace('{count}', String(total))
-
   // Designed shop cards, stamped by the shop module through the
   // search.shop-cards extension point. Absent provider = standard cards.
   const provider = (moduleExtensionPointComponents['search.shop-cards']?.shop ?? null) as ShopCardsProvider | null
@@ -109,6 +96,73 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
   // An owner who chose 'standard' has it written into the layout data, so this
   // default never overrides them.
   const wantShopCards = (props.productCardStyle ?? 'shopCard') === 'shopCard' && Boolean(provider?.renderProductCards)
+  const filtersProvider = (Object.values(moduleExtensionPointComponents['search.product-filters'] ?? {})[0] ?? null) as ProductFiltersProvider | null
+
+  // Session (admin or member) widens results to members-only content.
+  const [adminUser, member, tabSources, searchable] = await Promise.all([
+    getSessionFromCookie().catch(() => null),
+    getMemberFromCookie().catch(() => null),
+    // Filter tabs list every source this BLOCK is allowed to search - not the
+    // narrowed set the current tab is searching. Reading the narrowed set is
+    // what made the whole tab bar vanish the moment a tab was clicked, leaving
+    // no way back to All.
+    resolveSearchableSources(blockSources.length ? blockSources : undefined),
+    resolveSearchableSources(effectiveSources.length ? effectiveSources : undefined),
+  ])
+  const includeMembersTier = Boolean(adminUser || member)
+  const activeTab = paramSources.length === 1 ? paramSources[0] : null
+
+  // The filter panel over the product results, when a module offers one and the
+  // products are in scope. Built over EVERY matching product rather than the
+  // page of them this render would have shown: a panel offering "Blue" that only
+  // knew about page one would hide the blue product on page two, which is the
+  // very thing the shopper is filtering to find.
+  const wantFilterGrid = wantShopCards
+    && props.productFilters !== 'no'
+    && Boolean(filtersProvider?.renderFilteredProductCards)
+    && searchable.includes('shop-product')
+  const gridProductIds = wantFilterGrid
+    ? await searchProductIds({ q, includeMembersTier, limit: PRODUCT_GRID_LIMIT })
+    : []
+  let filterGridNode: ReactNode = null
+  if (gridProductIds.length > 0 && filtersProvider?.renderFilteredProductCards) {
+    try {
+      filterGridNode = await filtersProvider.renderFilteredProductCards(gridProductIds, {
+        columns: parseInt(props.columns ?? '3', 10) || 3,
+        pageSize: perPage,
+      })
+    } catch {
+      filterGridNode = null
+    }
+  }
+  // Nothing to filter by (or the provider failed): the products go back in the
+  // paged list exactly as they did before any of this existed.
+  const usingFilterGrid = filterGridNode !== null
+  const listSources = usingFilterGrid ? searchable.filter((s) => s !== 'shop-product') : searchable
+
+  const result = listSources.length > 0
+    ? await searchDocuments({
+        q,
+        sources: listSources,
+        includeMembersTier,
+        limit: perPage,
+        offset: (page - 1) * perPage,
+        sort,
+        highlight: display.highlight && display.showExcerpts,
+        snippetLength,
+      })
+    : { hits: [], total: 0, sources: [], relaxed: false }
+  const { hits } = result
+  // The pager pages the LIST, so its total is the list's - the products live in
+  // the grid above it and page themselves. The count line still says how many
+  // were found altogether, which is what a shopper reads it as. Only added where
+  // the grid actually rendered: everywhere else the products are still IN the
+  // list, and counting them twice is how a count line starts lying.
+  const total = usingFilterGrid ? result.total + gridProductIds.length : result.total
+
+  const heading = (props.headingTemplate ?? 'Results for "{query}"').replace('{query}', q)
+  const countLine = (props.countTemplate ?? '{count} results').replace('{count}', String(total))
+
   const productHits = wantShopCards ? hits.filter((h) => h.source === 'shop-product') : []
   let shopCardsNode: ReactNode = null
   if (wantShopCards && productHits.length > 0 && provider?.renderProductCards) {
@@ -141,7 +195,9 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
     )
   )
 
-  const totalPages = Math.max(1, Math.ceil(total / perPage))
+  // Pages of the LIST. Never of `total`, which counts the grid's products too -
+  // paging over a number bigger than the list offers empty pages at the end.
+  const totalPages = Math.max(1, Math.ceil(result.total / perPage))
   // Load-more cannot append server-stamped shop cards - numbered wins there.
   const paginationStyle = props.paginationStyle === 'loadMore' && !usingShopCards ? 'loadMore' : 'numbered'
   const pageHref = (n: number) => href({
@@ -192,13 +248,14 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
         </div>
       )}
 
-      {hits.length === 0 ? (
+      {hits.length === 0 && !usingFilterGrid ? (
         <div className="srch-empty" style={{ padding: '2rem 1rem' }}>
           <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>{props.emptyTitle?.trim() || 'Nothing found'}</p>
           <p style={{ margin: '.375rem 0 0' }}>{props.emptyBody?.trim() || 'No matches for that. Check the spelling, or try fewer words.'}</p>
         </div>
       ) : (
         <>
+          {usingFilterGrid && <div className="srch-section">{filterGridNode}</div>}
           {usingShopCards && <div className="srch-section">{shopCardsNode}</div>}
           {listHits.length > 0 && (
             props.groupBySource === 'yes' ? (
@@ -216,10 +273,10 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
           {paginationStyle === 'loadMore' && (
             <LoadMoreButton
               query={q}
-              sources={effectiveSources}
+              sources={listSources}
               perPage={perPage}
               startOffset={page * perPage}
-              total={total}
+              total={result.total}
               layout={layout}
               display={display}
               snippetLength={snippetLength}
