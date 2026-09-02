@@ -8,7 +8,7 @@ import { SOURCE_LABELS, type SearchHit, type SearchSourceKey } from '@/modules/s
 import { searchCss } from '../public/search-css'
 import { ResultRow, ProductCardLite, groupHits, type HitDisplayOptions } from '../public/ResultCard'
 import LoadMoreButton from '../public/LoadMoreButton'
-import { siteSearchResultsPuckComponent, resultsSourcesFromProps, type SiteSearchResultsBlockProps } from './SiteSearchResultsBlock'
+import { siteSearchResultsPuckComponent, resultsSourcesFromProps, searchResultsPaddingClasses, type SiteSearchResultsBlockProps } from './SiteSearchResultsBlock'
 
 // Server (RSC) half of Search Results. Reads the query injected by the
 // /search page (inject-search-context.ts) and hits the index directly.
@@ -69,10 +69,13 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
   }
 
   const style = <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
+  // Left/right gutter, same string the editor half paints - without it a search
+  // layout that holds nothing but these blocks runs edge to edge on every screen.
+  const padClass = searchResultsPaddingClasses(props)
 
   if (!q) {
     return (
-      <div className="srch-results">
+      <div className={`srch-results ${padClass}`.trimEnd()}>
         {style}
         <div className="srch-empty" style={{ padding: '2rem 1rem' }}>Type something in the search box to get going.</div>
       </div>
@@ -221,7 +224,7 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
   }
 
   return (
-    <div className={`srch-results srch-thumb-${props.thumbnailShape ?? 'landscape'}`}>
+    <div className={`srch-results srch-thumb-${props.thumbnailShape ?? 'landscape'} ${padClass}`.trimEnd()}>
       {style}
       {heading !== '' && <h1 className="srch-res-heading">{heading}</h1>}
       {countLine !== '' && <p className="srch-res-count">{countLine}</p>}

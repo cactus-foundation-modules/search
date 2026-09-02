@@ -46,6 +46,10 @@ export type SearchBoxPublicConfig = {
   cornerStyle: 'square' | 'rounded' | 'pill'
   fieldStyle: 'outlined' | 'filled' | 'minimal'
   accent: 'primary' | 'link' | 'neutral'
+  // Left/right gutter utility classes for the box's root, resolved server-side
+  // (searchBoxPaddingClasses) so the canvas and the live page paint the same
+  // string. Empty when the box takes no gutter, which is most of them.
+  padClass: string
   widthMode: 'full' | 'fixed'
   widthPx: number
   align: 'left' | 'centre' | 'right'
@@ -395,6 +399,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     'srch-box',
     appearanceClasses,
     config.widthMode === 'fixed' ? `srch-align-${config.align}` : '',
+    config.padClass,
   ].filter(Boolean).join(' ')
   const boxStyle: React.CSSProperties = config.widthMode === 'fixed'
     ? { width: config.widthPx, maxWidth: '100%' }

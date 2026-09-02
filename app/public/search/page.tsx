@@ -53,7 +53,10 @@ export default async function SearchPage({ searchParams }: Props) {
     (moduleExtensionPointComponents['search.shop-cards']?.shop as { renderProductCards?: unknown } | undefined)?.renderProductCards,
   )
   return (
-    <div style={{ maxWidth: shopCards ? 1200 : 860, margin: '0 auto', padding: shopCards ? '2rem 1.5rem' : '2rem 1rem' }}>
+    // Vertical spacing only: the two blocks carry their own left/right gutter
+    // (searchBoxPaddingClasses / searchResultsPaddingClasses), so putting one
+    // here as well would pad the page twice over.
+    <div style={{ maxWidth: shopCards ? 1200 : 860, margin: '0 auto', padding: '2rem 0' }}>
       <div style={{ marginBottom: '1.5rem' }}>
         <SiteSearchBlockRsc {...boxProps} />
       </div>

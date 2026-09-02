@@ -4,6 +4,7 @@ import { searchCss, SRCH_SIZE_VARS } from '../public/search-css'
 // on the public render path. Same rule core's config.tsx follows.
 import { ResponsiveSelectField, SiteColourField } from '@/lib/puck/fields/registry'
 import { getResponsiveBreakpoints, normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type Device, type ResponsiveValue } from '@/lib/puck/responsiveValue'
+import { PADDING_OPTIONS, searchPaddingClasses } from '@/modules/search/lib/block-padding'
 import type { SearchSourceKey } from '@/modules/search/lib/types'
 
 // Editor half only. The live render (with the client search island) is in
@@ -78,6 +79,10 @@ export type SiteSearchBlockProps = {
   widthMode?: string
   widthPx?: number
   align?: string
+  // Left/right gutter, per breakpoint. 'auto' (what an untouched box stores)
+  // means the site gutter on the results page and none anywhere else - a header
+  // box has to stay flush with the icons beside it.
+  padding?: ResponsiveValue<string> | string
   // Dropdown results
   dropdownWidth?: string
   // Per-breakpoint, overlay-with-a-field only: how wide the field goes when it
@@ -185,6 +190,17 @@ export function searchBoxColourVars(props: Pick<SiteSearchBlockProps, 'boxBg' | 
   return Object.keys(vars).length ? (vars as React.CSSProperties) : undefined
 }
 
+// The gutter classes for this box. 'auto' only pads the arrangement that is a
+// page in its own right - the results page's box, which posts to /search and
+// sits in a bare layout with nothing else to space it. A box that opens a
+// dropdown or an overlay, or is an icon trigger, is header chrome nine times
+// out of ten and has to stay flush with the icons beside it, so it gets none.
+// Either way an owner can say which they want on any box.
+export function searchBoxPaddingClasses(props: Pick<SiteSearchBlockProps, 'padding' | 'mode' | 'presentation'>): string {
+  const pageBox = (props.mode ?? 'page') === 'page' && props.presentation !== 'iconButton'
+  return searchPaddingClasses(props.padding, pageBox ? 'default' : 'none')
+}
+
 export function SiteSearchBlock(props: SiteSearchBlockProps) {
   const { sizeClass, sizeCss } = searchSizeStyles(props.size, props.id)
   const boxClasses = [
@@ -194,6 +210,7 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
     `srch-style-${props.fieldStyle ?? 'outlined'}`,
     `srch-accent-${props.accent ?? 'primary'}`,
     props.widthMode === 'fixed' ? `srch-align-${props.align ?? 'left'}` : '',
+    searchBoxPaddingClasses(props),
   ].filter(Boolean).join(' ')
   const boxStyle: React.CSSProperties = props.widthMode === 'fixed'
     ? { width: props.widthPx ?? 320, maxWidth: '100%' }
@@ -339,6 +356,11 @@ export const siteSearchPuckComponent = {
       ],
     },
     widthPx: { type: 'number' as const, label: 'Width (px)', min: 120, max: 1200 },
+    padding: {
+      type: 'custom' as const, label: 'Padding (left/right)',
+      options: PADDING_OPTIONS,
+      render: ResponsiveSelectField,
+    },
     align: {
       type: 'select' as const, label: 'Alignment',
       options: [
@@ -435,6 +457,7 @@ export const siteSearchPuckComponent = {
     widthMode: 'full',
     widthPx: 320,
     align: 'left',
+    padding: { desktop: 'auto' },
     dropdownWidth: 'field',
     openWidth: { desktop: 'field' },
     productDisplay: 'rows',

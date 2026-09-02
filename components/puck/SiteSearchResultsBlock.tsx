@@ -1,5 +1,8 @@
 import { searchCss } from '../public/search-css'
 import { SOURCE_FIELD_MAP, type SiteSearchBlockProps } from './SiteSearchBlock'
+import { PADDING_OPTIONS, searchPaddingClasses } from '@/modules/search/lib/block-padding'
+import { ResponsiveSelectField } from '@/lib/puck/fields/registry'
+import type { ResponsiveValue } from '@/lib/puck/responsiveValue'
 import type { SearchSourceKey } from '@/modules/search/lib/types'
 
 // Editor half only. The database-backed render is in ./SiteSearchResultsBlock.rsc.
@@ -41,6 +44,10 @@ export type SiteSearchResultsBlockProps = {
   searchForum?: string
   searchMembers?: string
   // Layout
+  // Left/right gutter, per breakpoint. 'auto' (what an untouched block stores)
+  // takes the site gutter: this block only ever renders as a page of results,
+  // and a search layout is a bare list of blocks with no Section to space them.
+  padding?: ResponsiveValue<string> | string
   layout?: string
   columns?: string
   perPage?: number
@@ -88,6 +95,12 @@ const yesNo = [
   { value: 'no', label: 'No' },
 ]
 
+// Always the site gutter unless the owner says otherwise - see the note on the
+// prop. Shared with the RSC half so the canvas and the live page can't drift.
+export function searchResultsPaddingClasses(props: Pick<SiteSearchResultsBlockProps, 'padding'>): string {
+  return searchPaddingClasses(props.padding, 'default')
+}
+
 export function SiteSearchResultsBlock(props: SiteSearchResultsBlockProps) {
   const layout = props.layout ?? 'list'
   const ghost = (key: number) => (
@@ -110,7 +123,7 @@ export function SiteSearchResultsBlock(props: SiteSearchResultsBlockProps) {
     </span>
   )
   return (
-    <div className={`srch-results srch-thumb-${props.thumbnailShape ?? 'landscape'}`}>
+    <div className={`srch-results srch-thumb-${props.thumbnailShape ?? 'landscape'} ${searchResultsPaddingClasses(props)}`.trimEnd()}>
       <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
       {(props.headingTemplate ?? 'Results for "{query}"') !== '' && (
         <h2 className="srch-res-heading">{(props.headingTemplate ?? 'Results for "{query}"').replace('{query}', 'example')}</h2>
@@ -144,6 +157,11 @@ export const siteSearchResultsPuckComponent = {
     // Content types (narrowed to installed modules by resolveFields)
     ...Object.fromEntries(SOURCE_FIELD_MAP.map((m) => [m.field, { type: 'select' as const, label: m.label, options: yesNo }])),
     // Layout
+    padding: {
+      type: 'custom' as const, label: 'Padding (left/right)',
+      options: PADDING_OPTIONS,
+      render: ResponsiveSelectField,
+    },
     layout: {
       type: 'select' as const, label: 'Layout',
       options: [
@@ -228,6 +246,7 @@ export const siteSearchResultsPuckComponent = {
     searchDirectory: 'yes',
     searchForum: 'yes',
     searchMembers: 'yes',
+    padding: { desktop: 'auto' },
     layout: 'list',
     columns: '3',
     perPage: 20,
