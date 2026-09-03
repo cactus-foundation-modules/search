@@ -217,7 +217,7 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
   }
 
   // Fetch the server-stamped card fragment whenever the product ids in view
-  // change. The seq guard mirrors runSearch: a stale response never lands.
+  // change.
   const productHitIds = config.productDisplay === 'shopCards'
     ? hits.filter((h) => h.source === 'shop-product').map((h) => h.entityId)
     : []
@@ -229,7 +229,12 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
       setShopCards({ key: shopCardsKey, html: cached })
       return
     }
-    const seq = seqRef.current
+    // Staleness is settled by the ids this fetch was for, never by the search
+    // sequence. Keying it off the sequence stranded the dropdown on skeletons
+    // for good: a keystroke that lands on the SAME products leaves the key
+    // unchanged, so the effect never re-runs - and the one response there was
+    // got thrown away for carrying an older sequence number.
+    let cancelled = false
     const params = new URLSearchParams({ ids: shopCardsKey, cols: String(config.dropdownColumns) })
     fetch(`/search/cards?${params.toString()}`)
       .then((res) => (res.ok ? res.text() : null))
@@ -237,14 +242,18 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
         const fragment = text ? new DOMParser().parseFromString(text, 'text/html').getElementById('srch-shop-cards') : null
         // An empty fragment (shop closed, every id filtered out) is a "no" too.
         const html = fragment && fragment.innerHTML.trim() !== '' ? fragment.innerHTML : null
-        shopCardsCacheRef.current.set(shopCardsKey, html)
-        if (seq !== seqRef.current) return
+        // Only a real response is worth remembering. Caching the null a 500
+        // produces would hold those products on the plain fallback card for the
+        // rest of the session over one bad moment.
+        if (text !== null) shopCardsCacheRef.current.set(shopCardsKey, html)
+        if (cancelled) return
         setShopCards({ key: shopCardsKey, html })
       })
       .catch(() => {
-        if (seq !== seqRef.current) return
+        if (cancelled) return
         setShopCards({ key: shopCardsKey, html: null })
       })
+    return () => { cancelled = true }
   }, [shopCardsKey, config.dropdownColumns])
 
   // Close the inline dropdown on outside click.
