@@ -52,7 +52,7 @@ export const gazettePostAdapter: SearchAdapter = {
       SELECT p."id", p."title", p."slug", p."excerpt", p."builder_data", p."updated_at",
              p."imported_author_name",
              COALESCE(p."published_at", p."scheduled_for") AS effective_published,
-             u."name" AS author_name,
+             COALESCE(u."displayName", u."username") AS author_name,
              m."url" AS image_url,
              (SELECT string_agg(t."name", ' ') FROM "gz_post_tags" pt
                 JOIN "gz_tags" t ON t."id" = pt."tag_id"
