@@ -89,6 +89,7 @@ export type SiteSearchBlockProps = {
   // opens.
   openWidth?: ResponsiveValue<string> | string
   productDisplay?: string
+  articleDisplay?: string
   dropdownColumns?: string
   showThumbnails?: string
   showExcerpts?: string
@@ -397,6 +398,13 @@ export const siteSearchPuckComponent = {
         { value: 'shopCards', label: 'Designed product cards (from the shop)' },
       ],
     },
+    articleDisplay: {
+      type: 'select' as const, label: 'Articles shown as',
+      options: [
+        { value: 'rows', label: 'Rows (like other results)' },
+        { value: 'cards', label: 'Article cards' },
+      ],
+    },
     dropdownColumns: {
       type: 'select' as const, label: 'Card columns',
       options: [
@@ -461,6 +469,10 @@ export const siteSearchPuckComponent = {
     dropdownWidth: 'field',
     openWidth: { desktop: 'field' },
     productDisplay: 'rows',
+    // Articles as cards, matching the results page's own default: an article
+    // is a picture and a headline wherever it turns up, and a dropdown that
+    // disagreed with the page it links to is the mismatch this replaced.
+    articleDisplay: 'cards',
     dropdownColumns: '3',
     showThumbnails: 'yes',
     showExcerpts: 'yes',
@@ -500,6 +512,7 @@ export const siteSearchPuckComponent = {
       delete next.groupResults
       delete next.dropdownWidth
       delete next.productDisplay
+      delete next.articleDisplay
       delete next.dropdownColumns
       delete next.showThumbnails
       delete next.showExcerpts
@@ -509,11 +522,16 @@ export const siteSearchPuckComponent = {
       delete next.viewAllLabel
       delete next.emptyText
     } else {
+      const articlesPresent = available.length === 0 || availableKeys.has('gazette-post')
+      const articleCards = articlesPresent && props.searchArticles !== 'no'
+        && (props.articleDisplay ?? 'cards') === 'cards'
+      if (!articlesPresent || props.searchArticles === 'no') delete next.articleDisplay
       if (!shopPresent || props.searchProducts === 'no') {
         delete next.productDisplay
-        delete next.dropdownColumns
         delete next.showPrices
-      } else if (!['cards', 'shopCards'].includes(props.productDisplay ?? 'rows')) {
+        // The column count is the card grid's, whichever kind of card is in it.
+        if (!articleCards) delete next.dropdownColumns
+      } else if (!['cards', 'shopCards'].includes(props.productDisplay ?? 'rows') && !articleCards) {
         delete next.dropdownColumns
       }
     }

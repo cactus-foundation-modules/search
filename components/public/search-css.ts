@@ -139,6 +139,14 @@ mark.srch-mark{background:color-mix(in srgb,var(--srch-accent,var(--color-primar
 .srch-acard-excerpt{margin:0;font-size:.875rem;color:var(--color-text-muted)}
 .srch-acard-meta{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.5rem;font-size:.75rem;color:var(--color-text-muted)}
 
+/* Same card in a dropdown, where the room is a panel rather than a page: the
+   padding and the headline come down a step and the standfirst is clamped, so
+   three articles cannot push the rest of the results off the bottom. */
+.srch-dd-inner .srch-acard-body,.srch-overlay-results .srch-acard-body,.srch-bar-results .srch-acard-body{padding:.625rem}
+.srch-dd-inner .srch-acard-title,.srch-overlay-results .srch-acard-title,.srch-bar-results .srch-acard-title{font-size:.9375rem}
+.srch-dd-inner .srch-acard-excerpt,.srch-overlay-results .srch-acard-excerpt,.srch-bar-results .srch-acard-excerpt{font-size:.8125rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.srch-dd-inner .srch-acard-meta,.srch-overlay-results .srch-acard-meta,.srch-bar-results .srch-acard-meta{gap:.5rem;margin-top:.375rem}
+
 .srch-thumb-square .srch-row-thumb,.srch-thumb-square .srch-card-img{aspect-ratio:1/1}
 .srch-thumb-landscape .srch-card-img{aspect-ratio:4/3}
 .srch-thumb-landscape .srch-row-thumb{width:84px;height:63px}

@@ -57,6 +57,7 @@ function toConfig(props: SiteSearchBlockProps): SearchBoxPublicConfig {
     // the site's breakpoint widths for the island to compare against.
     ...searchOpenWidth(props),
     productDisplay: pick(props.productDisplay, ['rows', 'cards', 'shopCards'] as const, 'rows'),
+    articleDisplay: pick(props.articleDisplay, ['rows', 'cards'] as const, 'cards'),
     dropdownColumns: parseInt(props.dropdownColumns ?? '3', 10) || 3,
     display: {
       showThumbnails: props.showThumbnails !== 'no',

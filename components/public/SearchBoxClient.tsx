@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { SearchHit } from '@/modules/search/lib/types'
 import { SOURCE_LABELS, type SearchSourceKey } from '@/modules/search/lib/types'
-import { ResultRow, ProductCardLite, groupHits, type HitDisplayOptions } from './ResultCard'
+import { ResultRow, ProductCardLite, ArticleCardLite, groupHits, type HitDisplayOptions } from './ResultCard'
 
 // The live search island. Receives only the display subset of the block's
 // props (client props land verbatim in view-source); rendered by
@@ -63,6 +63,7 @@ export type SearchBoxPublicConfig = {
   openWidth: { desktop: OpenWidth; tablet: OpenWidth; mobile: OpenWidth }
   breakpoints: { mobile: number; tablet: number }
   productDisplay: 'rows' | 'cards' | 'shopCards'
+  articleDisplay: 'rows' | 'cards'
   dropdownColumns: number
   display: HitDisplayOptions
   viewAllLabel: string
@@ -427,7 +428,15 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     }
     const cardsMode = config.productDisplay === 'cards' || config.productDisplay === 'shopCards'
     const productHits = cardsMode ? hits.filter((h) => h.source === 'shop-product') : []
-    const rowHits = cardsMode ? hits.filter((h) => h.source !== 'shop-product') : hits
+    const afterProducts = cardsMode ? hits.filter((h) => h.source !== 'shop-product') : hits
+    // Articles as cards, same component the results page uses. Unlike the shop
+    // cards these are ours to stamp, so they stay in the arrow-key walk.
+    const articleHits = config.articleDisplay === 'cards'
+      ? afterProducts.filter((h) => h.source === 'gazette-post')
+      : []
+    const rowHits = articleHits.length > 0
+      ? afterProducts.filter((h) => h.source !== 'gazette-post')
+      : afterProducts
     const indexOfHit = new Map(navHits.map((h, i) => [h, i]))
     const rows = (list: SearchHit[]) => list.map((hit) => (
       <ResultRow
@@ -471,9 +480,23 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
           ))}
         </div>
       )
+    const articleSection = (
+      <div className="srch-cardgrid" style={{ ['--srch-cols' as string]: String(config.dropdownColumns) } as React.CSSProperties}>
+        {articleHits.map((hit) => (
+          <ArticleCardLite
+            key={`${hit.source}:${hit.entityId}`}
+            hit={hit}
+            opts={config.display}
+            active={indexOfHit.get(hit) === activeIndex}
+            id={indexOfHit.has(hit) ? optionId(indexOfHit.get(hit) ?? 0) : undefined}
+          />
+        ))}
+      </div>
+    )
     return (
       <>
         {productHits.length > 0 && productSection}
+        {articleHits.length > 0 && articleSection}
         {rowHits.length > 0 && (
           config.groupResults ? (
             groupHits(rowHits).map((group) => (
