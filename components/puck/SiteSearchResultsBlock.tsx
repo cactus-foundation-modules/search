@@ -57,6 +57,7 @@ export type SiteSearchResultsBlockProps = {
   sortControl?: string
   // Result cards
   productCardStyle?: string
+  articleCardStyle?: string
   productFilters?: string
   showThumbnails?: string
   thumbnailShape?: string
@@ -122,6 +123,19 @@ export function SiteSearchResultsBlock(props: SiteSearchResultsBlockProps) {
       </span>
     </span>
   )
+  // Articles sit in their own card grid on the live page (see the RSC half), so
+  // the canvas shows that grid rather than pretending they are rows.
+  const ghostArticleCard = (key: number) => (
+    <span key={key} className="srch-acard" style={{ opacity: 0.6 }}>
+      <span className="srch-acard-img" />
+      <span className="srch-acard-body">
+        <span style={{ display: 'block', height: 14, width: '80%', background: 'var(--color-border)', borderRadius: 4 }} />
+        <span style={{ display: 'block', height: 10, width: '95%', background: 'var(--color-border)', borderRadius: 4, marginTop: 8 }} />
+        <span style={{ display: 'block', height: 9, width: '45%', background: 'var(--color-border)', borderRadius: 4, marginTop: 10 }} />
+      </span>
+    </span>
+  )
+  const showArticleCards = props.searchArticles !== 'no' && (props.articleCardStyle ?? 'card') === 'card'
   return (
     <div className={`srch-results srch-thumb-${props.thumbnailShape ?? 'landscape'} ${searchResultsPaddingClasses(props)}`.trimEnd()}>
       <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
@@ -136,6 +150,11 @@ export function SiteSearchResultsBlock(props: SiteSearchResultsBlockProps) {
           <span className="srch-tab srch-tab-active">All</span>
           <span className="srch-tab">Products</span>
           <span className="srch-tab">Articles</span>
+        </div>
+      )}
+      {showArticleCards && (
+        <div className="srch-grid" style={{ ['--srch-cols' as string]: props.columns ?? '3', marginBottom: '1.5rem', pointerEvents: 'none' } as React.CSSProperties}>
+          {[0, 1, 2].map(ghostArticleCard)}
         </div>
       )}
       {layout === 'grid' ? (
@@ -195,6 +214,13 @@ export const siteSearchResultsPuckComponent = {
       options: [
         { value: 'standard', label: 'Standard result cards' },
         { value: 'shopCard', label: 'Designed shop product cards' },
+      ],
+    },
+    articleCardStyle: {
+      type: 'select' as const, label: 'Article results as',
+      options: [
+        { value: 'standard', label: 'Standard result cards' },
+        { value: 'card', label: 'Article cards (picture, title, standfirst)' },
       ],
     },
     productFilters: { type: 'select' as const, label: 'Product filters panel', options: yesNo },
@@ -258,6 +284,11 @@ export const siteSearchResultsPuckComponent = {
     // shows for the same products. Degrades to standard rows on its own when
     // shop is absent (no search.shop-cards provider) - see the RSC half.
     productCardStyle: 'shopCard',
+    // Articles as the card the gazette listing shows, for the same reason the
+    // products default to the shop's designed card: a plain row beside a grid
+    // of pictures is not what either of them looks like anywhere else on the
+    // site. 'standard' puts them back in the list.
+    articleCardStyle: 'card',
     // A filter panel beside the product results whenever a module offers one -
     // the same panel the category pages use, cut down to the filters these
     // results can actually be sorted by. Inert when nothing answers the
@@ -304,9 +335,13 @@ export const siteSearchResultsPuckComponent = {
     // The designed shop card is stamped server-side and cannot be appended by
     // the client load-more island - numbered pagination only in that mode.
     if (shopCards) delete next.paginationStyle
-    // Shop cards lay out in their own grid whatever the block's Layout says, so
-    // the column count stays editable outside grid layout in that mode.
-    if ((props.layout ?? 'list') !== 'grid' && !shopCards) delete next.columns
+    const articlesOn = (probe.sources.length === 0 || availableKeys.has('gazette-post')) && props.searchArticles !== 'no'
+    if (!articlesOn) delete next.articleCardStyle
+    const articleCards = articlesOn && (props.articleCardStyle ?? 'card') === 'card'
+    // Shop and article cards lay out in their own grid whatever the block's
+    // Layout says, so the column count stays editable outside grid layout in
+    // either mode.
+    if ((props.layout ?? 'list') !== 'grid' && !shopCards && !articleCards) delete next.columns
     if (props.showThumbnails === 'no') delete next.thumbnailShape
     if (props.showExcerpts === 'no') {
       delete next.snippetLength

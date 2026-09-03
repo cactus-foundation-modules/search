@@ -125,6 +125,20 @@ mark.srch-mark{background:color-mix(in srgb,var(--srch-accent,var(--color-primar
 .srch-card-name{font-size:.875rem;font-weight:500;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .srch-card-pricerow{margin-top:.25rem}
 
+/* Article card. Own class family rather than a variant of .srch-card, so the
+   block's thumbnail-shape choice (which crops product cards to 4:3 by default)
+   cannot reshape a picture the article layout wants square. */
+.srch-acard{display:block;text-decoration:none;color:var(--color-text);border:1px solid var(--color-border);border-radius:8px;overflow:hidden;background:var(--color-surface)}
+.srch-acard:hover{border-color:var(--srch-accent,var(--color-primary))}
+.srch-acard.srch-active{border-color:var(--srch-accent,var(--color-primary));background:var(--color-bg-subtle)}
+.srch-acard-img{display:block;aspect-ratio:1/1;background:var(--color-bg-subtle)}
+.srch-acard-img img{width:100%;height:100%;object-fit:cover;display:block}
+.srch-acard-body{display:block;padding:1rem}
+.srch-acard-title{margin:0 0 .375rem;font-size:1.125rem}
+.srch-acard:hover .srch-acard-title{text-decoration:underline}
+.srch-acard-excerpt{margin:0;font-size:.875rem;color:var(--color-text-muted)}
+.srch-acard-meta{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:.5rem;font-size:.75rem;color:var(--color-text-muted)}
+
 .srch-thumb-square .srch-row-thumb,.srch-thumb-square .srch-card-img{aspect-ratio:1/1}
 .srch-thumb-landscape .srch-card-img{aspect-ratio:4/3}
 .srch-thumb-landscape .srch-row-thumb{width:84px;height:63px}

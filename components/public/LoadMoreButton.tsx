@@ -2,18 +2,23 @@
 
 import { useState } from 'react'
 import type { SearchHit } from '@/modules/search/lib/types'
-import { ResultRow, ProductCardLite, type HitDisplayOptions } from './ResultCard'
+import { ResultRow, ProductCardLite, ArticleCardLite, type HitDisplayOptions } from './ResultCard'
 
 // Appends further result pages under the server-rendered list. Only offered
 // for the standard card style - the designed shop-card template can only be
 // stamped server-side, so that mode uses numbered pagination instead.
-export default function LoadMoreButton({ query, sources, perPage, startOffset, total, layout, display, snippetLength, label }: {
+export default function LoadMoreButton({ query, sources, perPage, startOffset, total, layout, columns, articleCards, display, snippetLength, label }: {
   query: string
   sources: string[]
   perPage: number
   startOffset: number
   total: number
   layout: 'list' | 'grid' | 'compact'
+  columns?: string
+  // Article hits render as gazette-style cards, matching the server-rendered
+  // page above. Unlike the designed shop card this one is a plain component, so
+  // the island can stamp it itself and load-more stays available.
+  articleCards?: boolean
   display: HitDisplayOptions
   snippetLength: 'short' | 'medium' | 'long'
   label: string
@@ -47,12 +52,24 @@ export default function LoadMoreButton({ query, sources, perPage, startOffset, t
     }
   }
 
+  // Appended articles go in their own grid above the appended rows, the same
+  // split the server render makes.
+  const extraArticles = articleCards ? extra.filter((h) => h.source === 'gazette-post') : []
+  const extraRest = extraArticles.length > 0 ? extra.filter((h) => h.source !== 'gazette-post') : extra
+
   return (
     <>
-      {extra.length > 0 && (
+      {extraArticles.length > 0 && (
+        <div className="srch-grid" style={{ marginTop: '1rem', ['--srch-cols' as string]: columns ?? '3' } as React.CSSProperties}>
+          {extraArticles.map((hit) => (
+            <ArticleCardLite key={`${hit.source}:${hit.entityId}`} hit={hit} opts={display} />
+          ))}
+        </div>
+      )}
+      {extraRest.length > 0 && (
         layout === 'grid' ? (
           <div className="srch-grid" style={{ marginTop: '1rem' }}>
-            {extra.map((hit) => (
+            {extraRest.map((hit) => (
               hit.source === 'shop-product'
                 ? <ProductCardLite key={`${hit.source}:${hit.entityId}`} hit={hit} />
                 : <ResultRow key={`${hit.source}:${hit.entityId}`} hit={hit} opts={display} />
@@ -60,7 +77,7 @@ export default function LoadMoreButton({ query, sources, perPage, startOffset, t
           </div>
         ) : (
           <div className={`srch-list${layout === 'compact' ? ' srch-list-compact' : ''}`} style={{ marginTop: '.25rem' }}>
-            {extra.map((hit) => (
+            {extraRest.map((hit) => (
               <ResultRow key={`${hit.source}:${hit.entityId}`} hit={hit} opts={display} />
             ))}
           </div>

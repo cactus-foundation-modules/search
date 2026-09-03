@@ -34,6 +34,13 @@ export function formatHitDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+// Long form, for the article card only: the gazette listing writes its dates
+// out in full ("3 September 2026") and a card that says "3 Sep 2026" beside it
+// reads as a different site.
+export function formatHitDateLong(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 export type HitDisplayOptions = {
   showThumbnails: boolean
   showExcerpts: boolean
@@ -131,6 +138,53 @@ export function ProductCardLite({ hit, active, id }: { hit: SearchHit; active?: 
           <HitPrice hit={hit} />
         </span>
       </span>
+    </a>
+  )
+}
+
+// Article lookalike of the card above, in the running order the gazette listing
+// uses: square picture, title, the standfirst that feeds and social previews
+// show, then author and date. Search-owned markup - a module never reaches into
+// another module's components - but a real <h3>, so the site's own heading font
+// paints the title exactly as it does on the gazette index.
+//
+// Author and date are part of this card's format rather than the row toggles'
+// business: those describe the standard result row, and an owner who turned
+// authors off there did not ask for a bylineless article card.
+export function ArticleCardLite({ hit, opts, active, id }: {
+  hit: SearchHit
+  opts: HitDisplayOptions
+  active?: boolean
+  id?: string
+}) {
+  const author = typeof hit.extra?.author === 'string' ? hit.extra.author : null
+  return (
+    <a
+      className={`srch-acard${active ? ' srch-active' : ''}`}
+      href={hit.url}
+      id={id}
+      role={id ? 'option' : undefined}
+      aria-selected={id ? active : undefined}
+    >
+      <span className="srch-acard-img">
+        {hit.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- plain stored URLs, sizes unknown at build
+          <img src={hit.imageUrl} alt="" loading="lazy" />
+        )}
+      </span>
+      {/* A div, not a span: the heading and the standfirst are flow content and
+          have no business inside phrasing content. <a> is transparent, so this
+          nests legally. */}
+      <div className="srch-acard-body">
+        <h3 className="srch-acard-title">{hit.title}</h3>
+        {opts.showExcerpts && hit.excerpt && <p className="srch-acard-excerpt">{hit.excerpt}</p>}
+        {(author || hit.date) && (
+          <span className="srch-acard-meta">
+            {author && <span>{author}</span>}
+            {hit.date && <span>{formatHitDateLong(hit.date)}</span>}
+          </span>
+        )}
+      </div>
     </a>
   )
 }

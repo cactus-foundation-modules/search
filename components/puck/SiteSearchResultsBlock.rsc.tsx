@@ -6,7 +6,7 @@ import { modulePublicExtensionPointComponents as moduleExtensionPointComponents 
 import { searchDocuments, searchProductIds, parseSourcesParam, resolveSearchableSources, type SnippetLength } from '@/modules/search/lib/query'
 import { SOURCE_LABELS, type SearchHit, type SearchSourceKey } from '@/modules/search/lib/types'
 import { searchCss } from '../public/search-css'
-import { ResultRow, ProductCardLite, groupHits, type HitDisplayOptions } from '../public/ResultCard'
+import { ResultRow, ProductCardLite, ArticleCardLite, groupHits, type HitDisplayOptions } from '../public/ResultCard'
 import LoadMoreButton from '../public/LoadMoreButton'
 import { siteSearchResultsPuckComponent, resultsSourcesFromProps, searchResultsPaddingClasses, type SiteSearchResultsBlockProps } from './SiteSearchResultsBlock'
 
@@ -179,7 +179,17 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
     }
   }
   const usingShopCards = shopCardsNode !== null && productHits.length > 0
-  const listHits = usingShopCards ? hits.filter((h) => h.source !== 'shop-product') : hits
+  const remainingHits = usingShopCards ? hits.filter((h) => h.source !== 'shop-product') : hits
+
+  // Articles as cards: the same picture-title-standfirst-byline card the
+  // gazette listing shows, in their own grid, for the same reason the products
+  // get one - a card cannot interleave with rows, and an article next to a
+  // product card looked like the poor relation.
+  const wantArticleCards = (props.articleCardStyle ?? 'card') === 'card'
+  const articleHits = wantArticleCards ? remainingHits.filter((h) => h.source === 'gazette-post') : []
+  const usingArticleCards = articleHits.length > 0
+  const listHits = usingArticleCards ? remainingHits.filter((h) => h.source !== 'gazette-post') : remainingHits
+  const gridColumns = props.columns ?? '3'
 
   const renderHit = (hit: SearchHit) => (
     layout === 'grid' && hit.source === 'shop-product'
@@ -260,6 +270,16 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
         <>
           {usingFilterGrid && <div className="srch-section">{filterGridNode}</div>}
           {usingShopCards && <div className="srch-section">{shopCardsNode}</div>}
+          {usingArticleCards && (
+            <div className="srch-section">
+              {props.groupBySource === 'yes' && <div className="srch-group-label">{SOURCE_LABELS['gazette-post']}</div>}
+              <div className="srch-grid" style={{ ['--srch-cols' as string]: gridColumns } as React.CSSProperties}>
+                {articleHits.map((hit) => (
+                  <ArticleCardLite key={`${hit.source}:${hit.entityId}`} hit={hit} opts={display} />
+                ))}
+              </div>
+            </div>
+          )}
           {listHits.length > 0 && (
             props.groupBySource === 'yes' ? (
               groupHits(listHits).map((group) => (
@@ -281,6 +301,8 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
               startOffset={page * perPage}
               total={result.total}
               layout={layout}
+              columns={gridColumns}
+              articleCards={wantArticleCards}
               display={display}
               snippetLength={snippetLength}
               label="Load more"
