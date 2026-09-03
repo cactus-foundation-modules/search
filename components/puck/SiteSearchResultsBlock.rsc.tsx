@@ -275,7 +275,7 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
               {props.groupBySource === 'yes' && <div className="srch-group-label">{SOURCE_LABELS['gazette-post']}</div>}
               <div className="srch-grid" style={{ ['--srch-cols' as string]: gridColumns } as React.CSSProperties}>
                 {articleHits.map((hit) => (
-                  <ArticleCardLite key={`${hit.source}:${hit.entityId}`} hit={hit} opts={display} />
+                  <ArticleCardLite key={`${hit.source}:${hit.entityId}`} hit={hit} />
                 ))}
               </div>
             </div>

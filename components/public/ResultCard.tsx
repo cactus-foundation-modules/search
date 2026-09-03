@@ -148,12 +148,14 @@ export function ProductCardLite({ hit, active, id }: { hit: SearchHit; active?: 
 // another module's components - but a real <h3>, so the site's own heading font
 // paints the title exactly as it does on the gazette index.
 //
-// Author and date are part of this card's format rather than the row toggles'
-// business: those describe the standard result row, and an owner who turned
-// authors off there did not ask for a bylineless article card.
-export function ArticleCardLite({ hit, opts, active, id }: {
+// The standfirst, author and date are part of this card's format rather than
+// the row toggles' business: those describe the standard result row. A header
+// box set to "Show excerpts: no" - a sensible thing to want when the results
+// are one-line rows - was otherwise stripping the summary out of the card and
+// leaving a picture, a headline and a byline with nothing between them. An
+// owner who wants the terse version has "Articles shown as: rows".
+export function ArticleCardLite({ hit, active, id }: {
   hit: SearchHit
-  opts: HitDisplayOptions
   active?: boolean
   id?: string
 }) {
@@ -177,7 +179,7 @@ export function ArticleCardLite({ hit, opts, active, id }: {
           nests legally. */}
       <div className="srch-acard-body">
         <h3 className="srch-acard-title">{hit.title}</h3>
-        {opts.showExcerpts && hit.excerpt && <p className="srch-acard-excerpt">{hit.excerpt}</p>}
+        {hit.excerpt && <p className="srch-acard-excerpt">{hit.excerpt}</p>}
         {(author || hit.date) && (
           <span className="srch-acard-meta">
             {author && <span>{author}</span>}

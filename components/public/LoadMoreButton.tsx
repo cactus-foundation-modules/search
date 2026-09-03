@@ -62,7 +62,7 @@ export default function LoadMoreButton({ query, sources, perPage, startOffset, t
       {extraArticles.length > 0 && (
         <div className="srch-grid" style={{ marginTop: '1rem', ['--srch-cols' as string]: columns ?? '3' } as React.CSSProperties}>
           {extraArticles.map((hit) => (
-            <ArticleCardLite key={`${hit.source}:${hit.entityId}`} hit={hit} opts={display} />
+            <ArticleCardLite key={`${hit.source}:${hit.entityId}`} hit={hit} />
           ))}
         </div>
       )}

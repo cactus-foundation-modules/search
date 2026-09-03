@@ -486,7 +486,6 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
           <ArticleCardLite
             key={`${hit.source}:${hit.entityId}`}
             hit={hit}
-            opts={config.display}
             active={indexOfHit.get(hit) === activeIndex}
             id={indexOfHit.has(hit) ? optionId(indexOfHit.get(hit) ?? 0) : undefined}
           />
