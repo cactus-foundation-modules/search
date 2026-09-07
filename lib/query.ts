@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 import { getInstalledManifests } from '@/lib/modules/live-status'
-import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 import { getSearchSettings } from './settings'
 import { listAvailableSources } from './indexer'
 import { splitPrefix, looseTerms } from './query-terms'
@@ -105,6 +104,14 @@ const LISTABILITY_POINT = 'shop.product-listability'
 async function resolveHiddenProductIds(productIds: string[]): Promise<Set<string>> {
   const out = new Set<string>()
   if (productIds.length === 0) return out
+  // Dynamic on purpose: a static edge from here to the generated registry
+  // closes an import cycle, because the registry imports this module's own
+  // contributed components and they reach back to this file. Turbopack can
+  // fail a production build on that with "Cannot access 'x' before
+  // initialization" while every local check stays green. See
+  // scripts/check-import-cycles.mjs.
+  const { modulePublicExtensionPointComponents: moduleExtensionPointComponents } =
+    await import('@/lib/modules/extension-points.public')
   const providers = (moduleExtensionPointComponents[LISTABILITY_POINT] ?? {}) as Record<string, ListabilityProvider>
   if (Object.keys(providers).length === 0) return out
 
@@ -129,6 +136,8 @@ async function resolveHiddenProductIds(productIds: string[]): Promise<Set<string
 async function resolveFromPrices(productIds: string[]): Promise<Map<string, CardFromPrice>> {
   const out = new Map<string, CardFromPrice>()
   if (productIds.length === 0) return out
+  const { modulePublicExtensionPointComponents: moduleExtensionPointComponents } =
+    await import('@/lib/modules/extension-points.public')
   const providers = (moduleExtensionPointComponents[CARD_PRICE_POINT] ?? {}) as Record<string, CardPriceProvider>
   if (Object.keys(providers).length === 0) return out
 

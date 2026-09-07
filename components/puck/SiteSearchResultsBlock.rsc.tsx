@@ -2,7 +2,6 @@ import { connection } from 'next/server'
 import type { ReactNode } from 'react'
 import { getSessionFromCookie } from '@/lib/auth/session'
 import { getMemberFromCookie } from '@/lib/members/session'
-import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 import { searchDocuments, searchProductIds, parseSourcesParam, resolveSearchableSources, type SnippetLength } from '@/modules/search/lib/query'
 import { SOURCE_LABELS, type SearchHit, type SearchSourceKey } from '@/modules/search/lib/types'
 import { searchCss } from '../public/search-css'
@@ -92,6 +91,14 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
 
   // Designed shop cards, stamped by the shop module through the
   // search.shop-cards extension point. Absent provider = standard cards.
+  // Dynamic on purpose: a static edge from here to the generated registry
+  // closes an import cycle, because the registry imports this module's own
+  // contributed components and they reach back to this file. Turbopack can
+  // fail a production build on that with "Cannot access 'x' before
+  // initialization" while every local check stays green. See
+  // scripts/check-import-cycles.mjs.
+  const { modulePublicExtensionPointComponents: moduleExtensionPointComponents } =
+    await import('@/lib/modules/extension-points.public')
   const provider = (moduleExtensionPointComponents['search.shop-cards']?.shop ?? null) as ShopCardsProvider | null
   // Unset means shop cards: a block saved from the starter arrangement (and the
   // /search page's no-layout fallback) carries no explicit pick, and rows there

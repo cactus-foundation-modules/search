@@ -13,7 +13,6 @@
 // module, exactly as lib/query.ts resolves shop.product-card-prices: a static
 // cross-module import breaks every build without that module installed.
 import { getInstalledManifests } from '@/lib/modules/live-status'
-import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 
 type ShopProductTextProvider = {
   textFor: (productIds: string[]) => Promise<Record<string, string>>
@@ -26,6 +25,14 @@ type ShopProductTextProvider = {
 const POINT = 'search.shop-product-text'
 
 async function providers(): Promise<ShopProductTextProvider[]> {
+  // Dynamic on purpose: a static edge from here to the generated registry
+  // closes an import cycle, because the registry imports this module's own
+  // contributed components and they reach back to this file. Turbopack can
+  // fail a production build on that with "Cannot access 'x' before
+  // initialization" while every local check stays green. See
+  // scripts/check-import-cycles.mjs.
+  const { modulePublicExtensionPointComponents: moduleExtensionPointComponents } =
+    await import('@/lib/modules/extension-points.public')
   const registered = (moduleExtensionPointComponents[POINT] ?? {}) as Record<string, ShopProductTextProvider>
   if (Object.keys(registered).length === 0) return []
 
