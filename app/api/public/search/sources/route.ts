@@ -26,3 +26,11 @@ export async function GET() {
     productFilterProvider,
   })
 }
+
+// Which things this site lets people search, which is a setting rather than
+// anything about the person asking.
+//
+// Shared-cache window for this route's answers, applied by the module dispatcher
+// (lib/cache/module-api-cache.ts) when the owner has ready-made copies switched
+// on and the request carries no session or member cookie.
+export const publicCacheTtl = 900
