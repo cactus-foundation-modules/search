@@ -227,8 +227,11 @@ export async function logQuery(query: string, resultCount: number, sources: stri
   `
 }
 
+// ::int4 is load-bearing. Prisma sends a JS integer as bigint, and there is no
+// make_interval(days => bigint) - Postgres answers 42883 and the nightly cron that
+// calls this returns a 500. Every named make_interval argument except `secs` is int4.
 export async function purgeOldQueries(retentionDays: number): Promise<number> {
   return prisma.$executeRaw`
-    DELETE FROM "srch_queries" WHERE "created_at" < NOW() - make_interval(days => ${retentionDays})
+    DELETE FROM "srch_queries" WHERE "created_at" < NOW() - make_interval(days => ${retentionDays}::int4)
   `
 }
