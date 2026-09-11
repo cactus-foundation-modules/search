@@ -3,6 +3,7 @@ import { getSessionFromCookie } from '@/lib/auth/session'
 import { searchCss } from '../public/search-css'
 import SearchBoxClient, { type SearchBoxPublicConfig } from '../public/SearchBoxClient'
 import { searchBoxColourVars, searchBoxPaddingClasses, searchOpenWidth, searchSizeStyles, siteSearchPuckComponent, sourcesFromProps, type SiteSearchBlockProps } from './SiteSearchBlock'
+import { SharedStyle } from '@/components/SharedStyle'
 
 // Server (RSC) half of the Search Box. Only the display subset of the props
 // crosses to the client island - and every prop here IS display config, so the
@@ -90,7 +91,7 @@ export async function SiteSearchBlockRsc(props: SiteSearchBlockProps) {
   }
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
+      <SharedStyle id="site-search" css={searchCss()} />
       <SearchBoxClient config={toConfig(props)} />
     </>
   )

@@ -8,6 +8,7 @@ import { searchCss } from '../public/search-css'
 import { ResultRow, ProductCardLite, ArticleCardLite, groupHits, type HitDisplayOptions } from '../public/ResultCard'
 import LoadMoreButton from '../public/LoadMoreButton'
 import { siteSearchResultsPuckComponent, resultsSourcesFromProps, searchResultsPaddingClasses, type SiteSearchResultsBlockProps } from './SiteSearchResultsBlock'
+import { SharedStyle } from '@/components/SharedStyle'
 
 // Server (RSC) half of Search Results. Reads the query injected by the
 // /search page (inject-search-context.ts) and hits the index directly.
@@ -67,7 +68,7 @@ export async function SiteSearchResultsBlockRsc(props: SiteSearchResultsBlockPro
     highlight: props.highlightMatches !== 'no',
   }
 
-  const style = <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
+  const style = <SharedStyle id="site-search" css={searchCss()} />
   // Left/right gutter, same string the editor half paints - without it a search
   // layout that holds nothing but these blocks runs edge to edge on every screen.
   const padClass = searchResultsPaddingClasses(props)

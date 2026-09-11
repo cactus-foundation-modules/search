@@ -4,6 +4,7 @@ import { PADDING_OPTIONS, searchPaddingClasses } from '@/modules/search/lib/bloc
 import { ResponsiveSelectField } from '@/lib/puck/fields/registry'
 import type { ResponsiveValue } from '@/lib/puck/responsiveValue'
 import type { SearchSourceKey } from '@/modules/search/lib/types'
+import { SharedStyle } from '@/components/SharedStyle'
 
 // Editor half only. The database-backed render is in ./SiteSearchResultsBlock.rsc.
 // Never imports prisma - see SiteSearchBlock.tsx.
@@ -138,7 +139,7 @@ export function SiteSearchResultsBlock(props: SiteSearchResultsBlockProps) {
   const showArticleCards = props.searchArticles !== 'no' && (props.articleCardStyle ?? 'card') === 'card'
   return (
     <div className={`srch-results srch-thumb-${props.thumbnailShape ?? 'landscape'} ${searchResultsPaddingClasses(props)}`.trimEnd()}>
-      <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
+      <SharedStyle id="site-search" css={searchCss()} />
       {(props.headingTemplate ?? 'Results for "{query}"') !== '' && (
         <h2 className="srch-res-heading">{(props.headingTemplate ?? 'Results for "{query}"').replace('{query}', 'example')}</h2>
       )}

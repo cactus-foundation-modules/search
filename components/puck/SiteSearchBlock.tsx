@@ -6,6 +6,7 @@ import { ResponsiveSelectField, SiteColourField } from '@/lib/puck/fields/regist
 import { getResponsiveBreakpoints, normalizeResponsiveValue, pickResponsive, responsiveMediaCssFor, type Device, type ResponsiveValue } from '@/lib/puck/responsiveValue'
 import { PADDING_OPTIONS, searchPaddingClasses } from '@/modules/search/lib/block-padding'
 import type { SearchSourceKey } from '@/modules/search/lib/types'
+import { SharedStyle } from '@/components/SharedStyle'
 
 // Editor half only. The live render (with the client search island) is in
 // ./SiteSearchBlock.rsc. This file reaches the Puck editor's client bundle
@@ -227,7 +228,7 @@ export function SiteSearchBlock(props: SiteSearchBlockProps) {
       style={colourVars || props.presentation !== 'iconButton' ? { ...(props.presentation === 'iconButton' ? undefined : boxStyle), ...colourVars } : undefined}
       data-srch-id={props.id}
     >
-      <style dangerouslySetInnerHTML={{ __html: searchCss() }} />
+      <SharedStyle id="site-search" css={searchCss()} />
       {sizeCss && <style dangerouslySetInnerHTML={{ __html: sizeCss }} />}
       {props.presentation === 'iconButton' ? (
         <span

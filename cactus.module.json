@@ -1,8 +1,8 @@
 {
   "name": "search",
-  "version": "0.1.43",
+  "version": "0.1.44",
   "tablePrefix": "srch_",
-  "requiresCoreVersion": "0.5.1288",
+  "requiresCoreVersion": "0.5.1584",
   "description": "Site-wide search across pages, shop, articles, directory, forum and members, with a configurable search box and results page.",
   "publicBasePath": "search",
   "permissions": [
