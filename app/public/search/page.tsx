@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { Render } from '@puckeditor/core/rsc'
 import { modulePublicExtensionPointComponents as moduleExtensionPointComponents } from '@/lib/modules/extension-points.public'
 import { resolveThemeLayout } from '@/lib/layout/resolveThemeLayout'
 import { getModuleLayoutPuckRscConfig } from '@/lib/puck/config.rsc'
@@ -9,6 +8,7 @@ import { SiteSearchBlockRsc } from '@/modules/search/components/puck/SiteSearchB
 import { siteSearchPuckComponent } from '@/modules/search/components/puck/SiteSearchBlock'
 import { SiteSearchResultsBlockRsc } from '@/modules/search/components/puck/SiteSearchResultsBlock.rsc'
 import { siteSearchResultsPuckComponent } from '@/modules/search/components/puck/SiteSearchResultsBlock'
+import { CactusRender } from '@/lib/puck/CactusRender'
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
@@ -39,7 +39,7 @@ export default async function SearchPage({ searchParams }: Props) {
   const layout = await resolveThemeLayout('searchResults', { moduleName: 'search' })
   if (layout?.builderData) {
     const data = injectSearchContext(layout.builderData as PuckData, ctx)
-    return <Render config={getModuleLayoutPuckRscConfig('searchResults') as any} data={data as any} />
+    return <CactusRender config={getModuleLayoutPuckRscConfig('searchResults') as any} data={data as any} />
   }
 
   // No published layout yet: render the starter arrangement directly so the
