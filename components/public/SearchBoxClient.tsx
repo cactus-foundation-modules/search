@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { SearchHit } from '@/modules/search/lib/types'
 import { SOURCE_LABELS, type SearchSourceKey } from '@/modules/search/lib/types'
 import { ResultRow, ProductCardLite, ArticleCardLite, groupHits, type HitDisplayOptions } from './ResultCard'
+import { adoptHoistedStyles } from '@/modules/search/lib/adopt-hoisted-styles'
 
 // The live search island. Receives only the display subset of the block's
 // props (client props land verbatim in view-source); rendered by
@@ -240,9 +241,13 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     fetch(`/search/cards?${params.toString()}`)
       .then((res) => (res.ok ? res.text() : null))
       .then((text) => {
-        const fragment = text ? new DOMParser().parseFromString(text, 'text/html').getElementById('srch-shop-cards') : null
+        const doc = text ? new DOMParser().parseFromString(text, 'text/html') : null
+        const fragment = doc ? doc.getElementById('srch-shop-cards') : null
         // An empty fragment (shop closed, every id filtered out) is a "no" too.
         const html = fragment && fragment.innerHTML.trim() !== '' ? fragment.innerHTML : null
+        // The cards' own stylesheets live in that document's <head>, not in the
+        // fragment. Bring the missing ones with them.
+        if (doc && html) adoptHoistedStyles(doc)
         // Only a real response is worth remembering. Caching the null a 500
         // produces would hold those products on the plain fallback card for the
         // rest of the session over one bad moment.
@@ -465,7 +470,8 @@ export default function SearchBoxClient({ config }: { config: SearchBoxPublicCon
     const productSection = config.productDisplay !== 'shopCards' ? liteGrid
       : typeof shopCardsHtml === 'string' ? (
         // Server HTML from this site's own /search/cards page - the shop's
-        // designed Product Card markup, style tags included.
+        // designed Product Card markup. Its stylesheets are not in here; they
+        // were hoisted into this page's <head> by adoptHoistedStyles.
         <div className="srch-shopcards" dangerouslySetInnerHTML={{ __html: shopCardsHtml }} />
       ) : shopCardsHtml === null ? liteGrid : (
         <div className="srch-cardgrid" aria-hidden="true" style={{ ['--srch-cols' as string]: String(config.dropdownColumns) } as React.CSSProperties}>
