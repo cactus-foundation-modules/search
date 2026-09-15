@@ -59,7 +59,7 @@ function toConfig(props: SiteSearchBlockProps): SearchBoxPublicConfig {
     ...searchOpenWidth(props),
     productDisplay: pick(props.productDisplay, ['rows', 'cards', 'shopCards'] as const, 'rows'),
     articleDisplay: pick(props.articleDisplay, ['rows', 'cards'] as const, 'cards'),
-    dropdownColumns: parseInt(props.dropdownColumns ?? '3', 10) || 3,
+    dropdownColumns: parseInt(props.dropdownColumns ?? '4', 10) || 4,
     display: {
       showThumbnails: props.showThumbnails !== 'no',
       showExcerpts: props.showExcerpts !== 'no',

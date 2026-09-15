@@ -474,7 +474,7 @@ export const siteSearchPuckComponent = {
     // is a picture and a headline wherever it turns up, and a dropdown that
     // disagreed with the page it links to is the mismatch this replaced.
     articleDisplay: 'cards',
-    dropdownColumns: '3',
+    dropdownColumns: '4',
     showThumbnails: 'yes',
     showExcerpts: 'yes',
     showTypeBadges: 'yes',

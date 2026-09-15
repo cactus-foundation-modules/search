@@ -1,3 +1,5 @@
+import { getResponsiveBreakpoints } from '@/lib/puck/responsiveValue'
+
 // All search chrome CSS, emitted as an injected <style> by the components that
 // need it (never a core globals.css edit - the stylesheet travels with the
 // block). Semantic tokens only; class prefix srch-.
@@ -30,6 +32,10 @@ export const SRCH_SIZE_VARS: Record<'small' | 'medium' | 'large', string> = {
 }
 
 export function searchCss(): string {
+  const { mobile, tablet } = getResponsiveBreakpoints()
+  const mobileBp = `${mobile}px`
+  const tabletBp = `${tablet}px`
+  const aboveMobileBp = `${mobile + 0.02}px`
   return `
 .srch-box{position:relative;font-family:inherit}
 .srch-box.srch-align-centre{margin-left:auto;margin-right:auto}
@@ -115,7 +121,7 @@ export function searchCss(): string {
 .srch-price-was{font-size:.75rem;color:var(--color-text-muted);text-decoration:line-through;margin-left:.25rem}
 mark.srch-mark{background:color-mix(in srgb,var(--srch-accent,var(--color-primary)) 22%,transparent);color:inherit;border-radius:2px;padding:0 1px}
 
-.srch-cardgrid{display:grid;grid-template-columns:repeat(var(--srch-cols,3),minmax(0,1fr));gap:.75rem;padding:.5rem}
+.srch-cardgrid{display:grid;grid-template-columns:repeat(var(--srch-cols,4),minmax(0,1fr));gap:.75rem;padding:.5rem}
 .srch-shopcards{padding:.5rem}
 .srch-card{display:block;text-decoration:none;color:var(--color-text);border:1px solid var(--color-border);border-radius:10px;overflow:hidden;background:var(--color-surface)}
 .srch-card:hover{border-color:var(--srch-accent,var(--color-primary))}
@@ -199,9 +205,14 @@ mark.srch-mark{background:color-mix(in srgb,var(--srch-accent,var(--color-primar
 .srch-overlay-head{padding:.75rem .75rem 0}
 .srch-overlay-results{overflow-y:auto;padding:.375rem}
 
-@media (max-width:640px){
+@media (max-width:${tabletBp}) and (min-width:${aboveMobileBp}){
+.srch-cardgrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.srch-shopcards .shop-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:${mobileBp}){
 .srch-overlay-panel{margin:0;max-width:none;height:100%;max-height:none;border-radius:0}
 .srch-cardgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.srch-shopcards .shop-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .srch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .srch-dd{max-height:60vh}
 }

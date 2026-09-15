@@ -38,7 +38,7 @@ export default async function SearchCardsPage({ searchParams }: Props) {
   // provider re-checks each one is a publicly listable ACTIVE product, so a
   // hand-typed id reveals nothing the shop pages don't.
   const ids = first(sp.ids).split(',').map((s) => s.trim()).filter(Boolean).slice(0, 24)
-  const columns = parseInt(first(sp.cols) || '3', 10) || 3
+  const columns = parseInt(first(sp.cols) || '4', 10) || 4
 
   const provider = (moduleExtensionPointComponents['search.shop-cards']?.shop ?? null) as ShopCardsProvider | null
   let cards: ReactNode = null
