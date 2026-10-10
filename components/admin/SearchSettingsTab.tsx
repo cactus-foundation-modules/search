@@ -125,7 +125,7 @@ function SettingsForm() {
           Site-wide master switches. A block on a page can narrow these further, but never re-enable one switched off here.
         </p>
         {sources.map((s) => (
-          <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.8125rem', padding: '.25rem 0' }}>
+          <label key={s.key} className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.8125rem', padding: '.25rem 0' }}>
             <input
               type="checkbox"
               checked={settings.sources[s.key] !== false}
@@ -159,7 +159,7 @@ function SettingsForm() {
           1 is normal. Higher lifts a content type up the results; lower pushes it down.
         </p>
         {sources.map((s) => (
-          <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.8125rem', padding: '.125rem 0' }}>
+          <label key={s.key} className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.8125rem', padding: '.125rem 0' }}>
             <span style={{ width: 140 }}>{s.label}</span>
             <input
               type="number"

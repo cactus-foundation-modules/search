@@ -118,7 +118,7 @@ export default function SearchDashboard() {
   if (!status) return null
 
   return (
-    <div style={{ maxWidth: 860 }}>
+    <div>
       <div style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
@@ -180,7 +180,7 @@ export default function SearchDashboard() {
       </div>
 
       {analytics && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 26rem), 1fr))', gap: '1rem' }}>
           <div style={cardStyle}>
             <h3 style={{ margin: '0 0 .5rem', fontSize: '.9375rem' }}>Top searches (30 days)</h3>
             {analytics.top.length === 0 ? (
