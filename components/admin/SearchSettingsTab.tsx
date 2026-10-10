@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { TabStrip } from '@/components/admin/TabStrip'
+import { SettingsHeaderActions, SettingsHeaderStatus } from '@/components/admin/SettingsHeaderActions'
 import { useTabParam } from '@/modules/search/lib/admin-tab-url'
 import SearchDashboard from '@/modules/search/components/admin/SearchDashboard'
 import { ALLOWED_LANGUAGES, type SearchSettings, type SearchSourceKey } from '@/modules/search/lib/types'
@@ -13,7 +14,6 @@ const inputStyle: React.CSSProperties = {
   width: '100%', padding: '.375rem .5rem', border: '1px solid var(--color-border)',
   borderRadius: 6, fontSize: '.8125rem', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)',
 }
-const rowStyle: React.CSSProperties = { marginBottom: '1rem', maxWidth: 480 }
 
 function SettingsForm() {
   const [settings, setSettings] = useState<SearchSettings | null>(null)
@@ -118,8 +118,8 @@ function SettingsForm() {
   }
 
   return (
-    <div>
-      <div style={rowStyle}>
+    <div className="settings-masonry">
+      <div className="card">
         <label style={labelStyle}>Content types included in search</label>
         <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
           Site-wide master switches. A block on a page can narrow these further, but never re-enable one switched off here.
@@ -137,7 +137,7 @@ function SettingsForm() {
         ))}
       </div>
 
-      <div style={rowStyle}>
+      <div className="card">
         <label style={labelStyle}>Language</label>
         <select
           style={inputStyle}
@@ -153,7 +153,7 @@ function SettingsForm() {
         </p>
       </div>
 
-      <div style={rowStyle}>
+      <div className="card">
         <label style={labelStyle}>Ranking weight per content type</label>
         <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
           1 is normal. Higher lifts a content type up the results; lower pushes it down.
@@ -177,7 +177,7 @@ function SettingsForm() {
         ))}
       </div>
 
-      <div style={rowStyle}>
+      <div className="card">
         <label style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.8125rem' }}>
           <input
             type="checkbox"
@@ -189,7 +189,7 @@ function SettingsForm() {
       </div>
 
       {settings.queryLogging && (
-        <div style={rowStyle}>
+        <div className="card">
           <label style={labelStyle}>Keep search-term log for (days)</label>
           <input
             type="number"
@@ -202,7 +202,7 @@ function SettingsForm() {
         </div>
       )}
 
-      <div style={rowStyle}>
+      <div className="card">
         <label style={labelStyle}>Excerpt length (characters)</label>
         <input
           type="number"
@@ -214,15 +214,14 @@ function SettingsForm() {
         />
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem' }}>
+      <SettingsHeaderActions>
+        <SettingsHeaderStatus message={saved ? 'Saved' : null} error={error} />
         <button className="btn btn-primary" onClick={save} disabled={saving}>
-          {saving ? 'Saving…' : 'Save settings'}
+          {saving ? 'Saving…' : 'Save changes'}
         </button>
-        {saved && <span style={{ fontSize: '.8125rem', color: 'var(--color-success)' }}>Saved.</span>}
-        {error && <span style={{ fontSize: '.8125rem', color: 'var(--color-danger)' }}>{error}</span>}
-      </div>
+      </SettingsHeaderActions>
 
-      <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)', maxWidth: 480 }}>
+      <div className="card">
         <label style={labelStyle}>Search index</label>
         <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
           Refreshes itself overnight. Rebuild after changing the language or the switches above, or any time results look stale.
