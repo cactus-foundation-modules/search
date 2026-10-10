@@ -19,10 +19,6 @@ type Analytics = {
 }
 type RunResult = { done: boolean; cursor: { source: SearchSourceKey; offset: number } | null; processed: number; deleted: number; errors: string[] }
 
-const cardStyle: React.CSSProperties = {
-  border: '1px solid var(--color-border)', borderRadius: 10, padding: '1rem',
-  background: 'var(--color-surface)', marginBottom: '1rem',
-}
 const thStyle: React.CSSProperties = {
   textAlign: 'left', fontSize: '.6875rem', fontWeight: 600, textTransform: 'uppercase',
   letterSpacing: '.05em', color: 'var(--color-text-secondary)', padding: '.375rem .5rem',
@@ -118,11 +114,11 @@ export default function SearchDashboard() {
   if (!status) return null
 
   return (
-    <div>
-      <div style={cardStyle}>
+    <div className="settings-col">
+      <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{status.totalDocuments.toLocaleString()} items in the index</div>
+            <div className="card-title">{status.totalDocuments.toLocaleString()} items in the index</div>
             <div style={{ fontSize: '.8125rem', color: 'var(--color-text-secondary)' }}>
               Last automatic run: {formatWhen(status.lastRunAt)} · refreshed nightly, or rebuild any time
             </div>
@@ -143,8 +139,8 @@ export default function SearchDashboard() {
         )}
       </div>
 
-      <div style={cardStyle}>
-        <h3 style={{ margin: '0 0 .5rem', fontSize: '.9375rem' }}>Content types</h3>
+      <div className="card">
+        <h3 className="card-title">Content types</h3>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -180,9 +176,9 @@ export default function SearchDashboard() {
       </div>
 
       {analytics && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 26rem), 1fr))', gap: '1rem' }}>
-          <div style={cardStyle}>
-            <h3 style={{ margin: '0 0 .5rem', fontSize: '.9375rem' }}>Top searches (30 days)</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 26rem), 1fr))', gap: 'var(--space-6)' }}>
+          <div className="card">
+            <h3 className="card-title">Top searches (30 days)</h3>
             {analytics.top.length === 0 ? (
               <p style={{ fontSize: '.8125rem', color: 'var(--color-text-secondary)', margin: 0 }}>Nothing logged yet.</p>
             ) : (
@@ -202,8 +198,8 @@ export default function SearchDashboard() {
               </table>
             )}
           </div>
-          <div style={cardStyle}>
-            <h3 style={{ margin: '0 0 .5rem', fontSize: '.9375rem' }}>Searches with no results (30 days)</h3>
+          <div className="card">
+            <h3 className="card-title">Searches with no results (30 days)</h3>
             <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
               What visitors wanted and could not find - the most useful list on this page.
             </p>

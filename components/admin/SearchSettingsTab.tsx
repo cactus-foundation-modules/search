@@ -6,10 +6,10 @@ import { SettingsHeaderActions, SettingsHeaderStatus } from '@/components/admin/
 import { useTabParam } from '@/modules/search/lib/admin-tab-url'
 import SearchDashboard from '@/modules/search/components/admin/SearchDashboard'
 import { ALLOWED_LANGUAGES, type SearchSettings, type SearchSourceKey } from '@/modules/search/lib/types'
+import { InfoTip } from '@/components/admin/InfoTip'
 
 type StatusSource = { key: SearchSourceKey; label: string; available: boolean; enabled: boolean; documentCount: number }
 
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: '.8125rem', fontWeight: 500, marginBottom: '.25rem' }
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '.375rem .5rem', border: '1px solid var(--color-border)',
   borderRadius: 6, fontSize: '.8125rem', fontFamily: 'inherit', background: 'var(--color-surface)', color: 'var(--color-text)',
@@ -118,102 +118,7 @@ function SettingsForm() {
   }
 
   return (
-    <div className="settings-masonry">
-      <div className="card">
-        <label style={labelStyle}>Content types included in search</label>
-        <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
-          Site-wide master switches. A block on a page can narrow these further, but never re-enable one switched off here.
-        </p>
-        {sources.map((s) => (
-          <label key={s.key} className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.8125rem', padding: '.25rem 0' }}>
-            <input
-              type="checkbox"
-              checked={settings.sources[s.key] !== false}
-              onChange={(e) => setSettings({ ...settings, sources: { ...settings.sources, [s.key]: e.target.checked } })}
-            />
-            {s.label}
-            <span style={{ color: 'var(--color-text-secondary)', fontSize: '.75rem' }}>({s.documentCount} indexed)</span>
-          </label>
-        ))}
-      </div>
-
-      <div className="card">
-        <label style={labelStyle}>Language</label>
-        <select
-          style={inputStyle}
-          value={settings.language}
-          onChange={(e) => setSettings({ ...settings, language: e.target.value })}
-        >
-          {ALLOWED_LANGUAGES.map((lang) => (
-            <option key={lang} value={lang}>{lang === 'simple' ? 'simple (no stemming)' : lang}</option>
-          ))}
-        </select>
-        <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '.25rem 0 0' }}>
-          How words are stemmed for matching. Changing this needs a full rebuild from the Search dashboard before it takes effect.
-        </p>
-      </div>
-
-      <div className="card">
-        <label style={labelStyle}>Ranking weight per content type</label>
-        <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
-          1 is normal. Higher lifts a content type up the results; lower pushes it down.
-        </p>
-        {sources.map((s) => (
-          <label key={s.key} className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.8125rem', padding: '.125rem 0' }}>
-            <span style={{ width: 140 }}>{s.label}</span>
-            <input
-              type="number"
-              min={0.1}
-              max={10}
-              step={0.1}
-              style={{ ...inputStyle, width: 90 }}
-              value={settings.weights[s.key] ?? 1}
-              onChange={(e) => {
-                const value = parseFloat(e.target.value)
-                setSettings({ ...settings, weights: { ...settings.weights, [s.key]: Number.isFinite(value) ? value : 1 } })
-              }}
-            />
-          </label>
-        ))}
-      </div>
-
-      <div className="card">
-        <label style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.8125rem' }}>
-          <input
-            type="checkbox"
-            checked={settings.queryLogging}
-            onChange={(e) => setSettings({ ...settings, queryLogging: e.target.checked })}
-          />
-          Keep a log of search terms (no visitor details, just the words and result counts)
-        </label>
-      </div>
-
-      {settings.queryLogging && (
-        <div className="card">
-          <label style={labelStyle}>Keep search-term log for (days)</label>
-          <input
-            type="number"
-            min={1}
-            max={3650}
-            style={{ ...inputStyle, width: 120 }}
-            value={settings.logRetentionDays}
-            onChange={(e) => setSettings({ ...settings, logRetentionDays: parseInt(e.target.value, 10) || 90 })}
-          />
-        </div>
-      )}
-
-      <div className="card">
-        <label style={labelStyle}>Excerpt length (characters)</label>
-        <input
-          type="number"
-          min={60}
-          max={600}
-          style={{ ...inputStyle, width: 120 }}
-          value={settings.excerptLength}
-          onChange={(e) => setSettings({ ...settings, excerptLength: parseInt(e.target.value, 10) || 160 })}
-        />
-      </div>
-
+    <div className="settings-cols">
       <SettingsHeaderActions>
         <SettingsHeaderStatus message={saved ? 'Saved' : null} error={error} />
         <button className="btn btn-primary" onClick={save} disabled={saving}>
@@ -222,16 +127,105 @@ function SettingsForm() {
       </SettingsHeaderActions>
 
       <div className="card">
-        <label style={labelStyle}>Search index</label>
-        <p style={{ fontSize: '.75rem', color: 'var(--color-text-secondary)', margin: '0 0 .5rem' }}>
-          Refreshes itself overnight. Rebuild after changing the language or the switches above, or any time results look stale.
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem' }}>
-          <button className="btn" onClick={rebuildIndex} disabled={rebuilding}>
+        <div className="card-title">
+          What can be searched, and how it ranks
+          <InfoTip>
+            Site-wide master switches. A block on a page can narrow these further, but never re-enable one switched off
+            here. For ranking, 1 is normal: higher lifts a content type up the results, lower pushes it down.
+          </InfoTip>
+        </div>
+        {sources.length === 0 && <span className="field-hint">Nothing on this site can be searched yet.</span>}
+        {sources.map((s) => (
+          <div key={s.key} className="settings-group">
+            <label className="settings-check">
+              <input
+                type="checkbox"
+                checked={settings.sources[s.key] !== false}
+                onChange={(e) => setSettings({ ...settings, sources: { ...settings.sources, [s.key]: e.target.checked } })}
+              />
+              Search {s.label.toLowerCase()}
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '.75rem' }}>({s.documentCount} indexed)</span>
+            </label>
+            <div className="field">
+              <label htmlFor={`search-weight-${s.key}`}>{s.label} ranking</label>
+              <input
+                id={`search-weight-${s.key}`}
+                type="number"
+                min={0.1}
+                max={10}
+                step={0.1}
+                style={inputStyle}
+                value={settings.weights[s.key] ?? 1}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value)
+                  setSettings({ ...settings, weights: { ...settings.weights, [s.key]: Number.isFinite(value) ? value : 1 } })
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="card-title">Results and the search log</div>
+        <div className="field">
+          <label htmlFor="search-language">
+            Language
+            <InfoTip>How words are stemmed for matching. Changing this needs the index rebuilding (below) before it takes effect.</InfoTip>
+          </label>
+          <select
+            id="search-language"
+            value={settings.language}
+            onChange={(e) => setSettings({ ...settings, language: e.target.value })}
+          >
+            {ALLOWED_LANGUAGES.map((lang) => (
+              <option key={lang} value={lang}>{lang === 'simple' ? 'simple (no stemming)' : lang}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="search-excerpt">
+            Excerpt length (characters)
+            <InfoTip>How much of each result is shown under its title.</InfoTip>
+          </label>
+          <input
+            id="search-excerpt"
+            type="number"
+            min={60}
+            max={600}
+            value={settings.excerptLength}
+            onChange={(e) => setSettings({ ...settings, excerptLength: parseInt(e.target.value, 10) || 160 })}
+          />
+        </div>
+        <label className="settings-check field--beside-input">
+          <input
+            type="checkbox"
+            checked={settings.queryLogging}
+            onChange={(e) => setSettings({ ...settings, queryLogging: e.target.checked })}
+          />
+          Keep a log of search terms
+          <InfoTip>No visitor details, just the words and how many results they found.</InfoTip>
+        </label>
+        {settings.queryLogging && (
+          <div className="field">
+            <label htmlFor="search-log-days">Keep the log for (days)</label>
+            <input
+              id="search-log-days"
+              type="number"
+              min={1}
+              max={3650}
+              value={settings.logRetentionDays}
+              onChange={(e) => setSettings({ ...settings, logRetentionDays: parseInt(e.target.value, 10) || 90 })}
+            />
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-secondary" onClick={rebuildIndex} disabled={rebuilding}>
             {rebuilding ? `Rebuilding… ${rebuildProgress} done` : 'Rebuild index now'}
           </button>
+          <InfoTip>The index refreshes itself overnight. Rebuild after changing the language or the switches above, or any time results look stale.</InfoTip>
           {rebuilding && (
-            <button className="btn" onClick={() => { rebuildCancelRef.current = true }}>Stop</button>
+            <button type="button" className="btn btn-secondary" onClick={() => { rebuildCancelRef.current = true }}>Stop</button>
           )}
           {rebuildDone !== null && !rebuilding && (
             <span style={{ fontSize: '.8125rem', color: 'var(--color-success)' }}>Done - {rebuildDone} items indexed.</span>
@@ -251,7 +245,6 @@ export function SearchSettingsTab() {
   return (
     <div>
       <TabStrip
-        style={{ marginBottom: '1.5rem' }}
         items={[
           { key: 'settings', label: 'Settings', active: tab === 'settings', onClick: () => setTab('settings') },
           { key: 'index', label: 'Index & searches', active: tab === 'index', onClick: () => setTab('index') },
