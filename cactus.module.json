@@ -1,7 +1,10 @@
 {
   "name": "search",
-  "version": "0.1.51",
+  "version": "0.1.52",
   "tablePrefix": "srch_",
+  "notificationKinds": [
+    {"id": "index-empty", "label": "Search index empty", "description": "Search has nothing in its index yet, so searches find nothing.", "dedupePrefix": "search:index-empty"}
+  ],
   "requiresCoreVersion": "0.5.1763",
   "description": "Site-wide search across pages, shop, articles, directory, forum and members, with a configurable search box and results page.",
   "publicBasePath": "search",
